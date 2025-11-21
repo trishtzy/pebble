@@ -34,11 +34,13 @@ static void init() {
   // Load the bitmap from resources
   s_bitmap = gbitmap_create_with_resource(RESOURCE_ID_ff34a9607b6df8921e81c1f2722fc55b);
 
-  // Create BitmapLayer to display the image
-  s_bitmap_layer = bitmap_layer_create(bounds);
+  // Create smaller BitmapLayer centered below the time
+  int image_size = 144;
+  int image_x = 0;
+  int image_y = 30;
+  s_bitmap_layer = bitmap_layer_create(GRect(image_x, image_y, image_size, image_size));
   bitmap_layer_set_bitmap(s_bitmap_layer, s_bitmap);
   bitmap_layer_set_compositing_mode(s_bitmap_layer, GCompOpSet);
-  bitmap_layer_set_alignment(s_bitmap_layer, GAlignCenter);
 
   // Add the bitmap layer to the window
   layer_add_child(window_layer, bitmap_layer_get_layer(s_bitmap_layer));
