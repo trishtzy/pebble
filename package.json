@@ -1,14 +1,16 @@
 {
-  "name": "watchface",
-  "author": "MakeAwesomeHappen",
+  "name": "Perryverse",
+  "author": "trishtzy",
   "version": "1.0.0",
   "keywords": [
-    "pebble-app"
+    "pebble-app",
+    "falconfinance",
+    "watchface"
   ],
   "private": true,
   "dependencies": {},
   "pebble": {
-    "displayName": "watchface",
+    "displayName": "Perryverse",
     "uuid": "eded58fc-c9fe-40e4-a8fa-e5aa2df27d67",
     "sdkVersion": "3",
     "enableMultiJS": true,
