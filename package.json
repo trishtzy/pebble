@@ -1,0 +1,39 @@
+{
+  "name": "watchface",
+  "author": "MakeAwesomeHappen",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "watchface",
+    "uuid": "eded58fc-c9fe-40e4-a8fa-e5aa2df27d67",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery",
+      "flint"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [
+      "dummy"
+    ],
+    "resources": {
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "ff34a9607b6df8921e81c1f2722fc55b",
+          "file": "ff34a9607b6df8921e81c1f2722fc55b.png"
+        }
+      ]
+    }
+  }
+}
