@@ -31,7 +31,32 @@
         {
           "type": "bitmap",
           "name": "ff34a9607b6df8921e81c1f2722fc55b",
-          "file": "ff34a9607b6df8921e81c1f2722fc55b.png"
+          "file": "ff34a9607b6df8921e81c1f2722fc55b_v2.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BATTERY_FULL",
+          "file": "battery.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BATTERY_HEALTHY",
+          "file": "battery-healthy.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BATTERY_HALF",
+          "file": "half-battery.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BATTERY_LOW",
+          "file": "low-battery.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BATTERY_CHARGING",
+          "file": "battery-charge.png"
         }
       ]
     }

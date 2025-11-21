@@ -5,6 +5,8 @@ static GBitmap *s_bitmap;
 static BitmapLayer *s_bitmap_layer;
 static TextLayer *s_time_layer;
 static TextLayer *s_battery_layer;
+static GBitmap *s_battery_icon = NULL;
+static BitmapLayer *s_battery_icon_layer;
 
 static void update_time() {
   // Get a tm structure
@@ -30,6 +32,27 @@ static void battery_callback(BatteryChargeState state) {
 
   // Display this on the battery layer
   text_layer_set_text(s_battery_layer, battery_buffer);
+
+  // Destroy old battery icon if it exists
+  if (s_battery_icon) {
+    gbitmap_destroy(s_battery_icon);
+  }
+
+  // Load the appropriate battery icon based on state
+  if (state.is_charging) {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_CHARGING);
+  } else if (state.charge_percent == 100) {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_FULL);
+  } else if (state.charge_percent >= 60) {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_HEALTHY);
+  } else if (state.charge_percent >= 40) {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_HALF);
+  } else {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_LOW);
+  }
+
+  // Update the battery icon layer
+  bitmap_layer_set_bitmap(s_battery_icon_layer, s_battery_icon);
 }
 
 static void init() {
@@ -47,7 +70,7 @@ static void init() {
   // Create smaller BitmapLayer centered below the time
   int image_size = 144;
   int image_x = 0;
-  int image_y = 30;
+  int image_y = 36;
   s_bitmap_layer = bitmap_layer_create(GRect(image_x, image_y, image_size, image_size));
   bitmap_layer_set_bitmap(s_bitmap_layer, s_bitmap);
   bitmap_layer_set_compositing_mode(s_bitmap_layer, GCompOpSet);
@@ -71,7 +94,15 @@ static void init() {
   // Make sure the time is displayed from the start
   update_time();
 
-  // Create battery TextLayer in top right corner
+  // Create battery icon layer in top right corner
+  int icon_size = 20;
+  int icon_x = bounds.size.w - 50;
+  int icon_y = 0;
+  s_battery_icon_layer = bitmap_layer_create(GRect(icon_x, icon_y, icon_size, icon_size));
+  bitmap_layer_set_compositing_mode(s_battery_icon_layer, GCompOpSet);
+  layer_add_child(window_layer, bitmap_layer_get_layer(s_battery_icon_layer));
+
+  // Create battery TextLayer next to the icon
   int battery_width = 45;
   int battery_height = 20;
   int battery_x = bounds.size.w - 50;
@@ -100,9 +131,13 @@ static void deinit() {
   // Destroy layers
   text_layer_destroy(s_battery_layer);
   text_layer_destroy(s_time_layer);
+  bitmap_layer_destroy(s_battery_icon_layer);
   bitmap_layer_destroy(s_bitmap_layer);
 
-  // Destroy bitmap
+  // Destroy bitmaps
+  if (s_battery_icon) {
+    gbitmap_destroy(s_battery_icon);
+  }
   gbitmap_destroy(s_bitmap);
 
   // Destroy window
