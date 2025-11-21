@@ -4,6 +4,7 @@ static Window *s_window;
 static GBitmap *s_bitmap;
 static BitmapLayer *s_bitmap_layer;
 static TextLayer *s_time_layer;
+static TextLayer *s_battery_layer;
 
 static void update_time() {
   // Get a tm structure
@@ -20,6 +21,15 @@ static void update_time() {
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time();
+}
+
+static void battery_callback(BatteryChargeState state) {
+  // Write the battery percentage into a buffer
+  static char battery_buffer[16];
+  snprintf(battery_buffer, sizeof(battery_buffer), "%d%%", state.charge_percent);
+
+  // Display this on the battery layer
+  text_layer_set_text(s_battery_layer, battery_buffer);
 }
 
 static void init() {
@@ -60,16 +70,36 @@ static void init() {
 
   // Make sure the time is displayed from the start
   update_time();
+
+  // Create battery TextLayer in top right corner
+  int battery_width = 45;
+  int battery_height = 20;
+  int battery_x = bounds.size.w - 50;
+  int battery_y = 0;
+  s_battery_layer = text_layer_create(GRect(battery_x, battery_y, battery_width, battery_height));
+  text_layer_set_background_color(s_battery_layer, GColorClear);
+  text_layer_set_text_color(s_battery_layer, GColorBlack);
+  text_layer_set_font(s_battery_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
+  text_layer_set_text_alignment(s_battery_layer, GTextAlignmentRight);
+
+  // Add battery layer to the window
+  layer_add_child(window_layer, text_layer_get_layer(s_battery_layer));
+
+  // Register for battery level updates
+  battery_state_service_subscribe(battery_callback);
+
+  // Ensure battery level is displayed from the start
+  battery_callback(battery_state_service_peek());
 }
 
 static void deinit() {
-  // Unsubscribe from tick timer
+  // Unsubscribe from services
   tick_timer_service_unsubscribe();
+  battery_state_service_unsubscribe();
 
-  // Destroy time layer
+  // Destroy layers
+  text_layer_destroy(s_battery_layer);
   text_layer_destroy(s_time_layer);
-
-  // Destroy bitmap layer
   bitmap_layer_destroy(s_bitmap_layer);
 
   // Destroy bitmap
