@@ -48,6 +48,8 @@ static void load_sequence(uint32_t resource_id) {
   if (s_sequence) {
     // Create blank bitmap with the correct size
     GSize frame_size = gbitmap_sequence_get_bitmap_size(s_sequence);
+
+    // Create 8-bit bitmap for all platforms (display driver handles conversion)
     s_bitmap = gbitmap_create_blank(frame_size, GBitmapFormat8Bit);
 
     // Set the bitmap on the layer
@@ -60,23 +62,21 @@ static void load_sequence(uint32_t resource_id) {
 }
 
 static void timer_handler(void *context) {
-  if (!s_sequence || !s_bitmap) {
-    return;
-  }
-
-  // Advance to the next frame
   uint32_t next_delay;
+
+  // Advance to the next APNG frame, and get the delay for this frame
   if (gbitmap_sequence_update_bitmap_next_frame(s_sequence, s_bitmap, &next_delay)) {
-    // Schedule next frame update
+    // Set the new frame into the BitmapLayer
+    bitmap_layer_set_bitmap(s_bitmap_layer, s_bitmap);
+    layer_mark_dirty(bitmap_layer_get_layer(s_bitmap_layer));
+
+    // Timer for that frame's delay
     s_timer = app_timer_register(next_delay, timer_handler, NULL);
   } else {
     // Sequence ended, restart from beginning
     gbitmap_sequence_restart(s_sequence);
     s_timer = app_timer_register(0, timer_handler, NULL);
   }
-
-  // Mark layer as dirty to redraw
-  layer_mark_dirty(bitmap_layer_get_layer(s_bitmap_layer));
 }
 
 static void update_time() {
