@@ -13,9 +13,7 @@
     "targetPlatforms": [
       "aplite",
       "basalt",
-      "chalk",
       "diorite",
-      "emery",
       "flint"
     ],
     "watchapp": {
@@ -60,6 +58,12 @@
           "type": "bitmap",
           "name": "BATTERY_CHARGING",
           "file": "battery-charge.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "MENU_ICON",
+          "file": "icon.png",
+          "menuIcon": true
         }
       ]
     }
