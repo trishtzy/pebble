@@ -1,2 +1,3 @@
-**/build/
+**/build/*
+!**/build/*.pbw
 **/.lock-waf_darwin_build
