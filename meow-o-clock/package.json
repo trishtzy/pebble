@@ -35,6 +35,31 @@
           "type": "raw",
           "name": "KITTEN_SLEEPING",
           "file": "kitten-sleeping.png"
+        },
+         {
+          "type": "bitmap",
+          "name": "BATTERY_FULL",
+          "file": "battery.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BATTERY_HEALTHY",
+          "file": "battery-healthy.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BATTERY_HALF",
+          "file": "half-battery.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BATTERY_LOW",
+          "file": "low-battery.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BATTERY_CHARGING",
+          "file": "battery-charge.png"
         }
       ]
     }

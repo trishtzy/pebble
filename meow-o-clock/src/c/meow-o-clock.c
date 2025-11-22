@@ -4,6 +4,8 @@ static Window *s_window;
 static TextLayer *s_time_layer;
 static TextLayer *s_date_layer;
 static TextLayer *s_battery_layer;
+static GBitmap *s_battery_icon = NULL;
+static BitmapLayer *s_battery_icon_layer;
 static BitmapLayer *s_bitmap_layer;
 static GBitmapSequence *s_sequence = NULL;
 static GBitmap *s_bitmap = NULL;
@@ -116,6 +118,27 @@ static void battery_callback(BatteryChargeState state) {
 
   // Display this on the battery layer
   text_layer_set_text(s_battery_layer, battery_buffer);
+
+  // Destroy old battery icon if it exists
+  if (s_battery_icon) {
+    gbitmap_destroy(s_battery_icon);
+  }
+
+  // Load the appropriate battery icon based on state
+  if (state.is_charging) {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_CHARGING);
+  } else if (state.charge_percent == 100) {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_FULL);
+  } else if (state.charge_percent >= 60) {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_HEALTHY);
+  } else if (state.charge_percent >= 40) {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_HALF);
+  } else {
+    s_battery_icon = gbitmap_create_with_resource(RESOURCE_ID_BATTERY_LOW);
+  }
+
+  // Update the battery icon layer
+  bitmap_layer_set_bitmap(s_battery_icon_layer, s_battery_icon);
 }
 
 static void init() {
@@ -152,11 +175,21 @@ static void init() {
   text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
-  // Create battery TextLayer in top right corner with 5px padding
-  int battery_width = 45;
+  // Create battery TextLayer in top right corner with 3px padding from right edge
+  // Width is sized to fit "100%" exactly
+  int battery_width = 30;
   int battery_height = 20;
   int battery_x = bounds.size.w - battery_width - 5;
   int battery_y = 0;
+
+  // Create battery icon layer to the left of the text with 2px gap
+  int icon_size = 20;
+  int icon_x = battery_x - icon_size - 2;
+  int icon_y = 0;
+  s_battery_icon_layer = bitmap_layer_create(GRect(icon_x, icon_y, icon_size, icon_size));
+  bitmap_layer_set_compositing_mode(s_battery_icon_layer, GCompOpSet);
+  layer_add_child(window_layer, bitmap_layer_get_layer(s_battery_icon_layer));
+
   s_battery_layer = text_layer_create(GRect(battery_x, battery_y, battery_width, battery_height));
   text_layer_set_background_color(s_battery_layer, GColorClear);
   text_layer_set_text_color(s_battery_layer, GColorBlack);
@@ -191,9 +224,13 @@ static void deinit() {
   text_layer_destroy(s_time_layer);
   text_layer_destroy(s_date_layer);
   text_layer_destroy(s_battery_layer);
+  bitmap_layer_destroy(s_battery_icon_layer);
   bitmap_layer_destroy(s_bitmap_layer);
 
   // Destroy bitmaps and sequence
+  if (s_battery_icon) {
+    gbitmap_destroy(s_battery_icon);
+  }
   if (s_sequence) {
     gbitmap_sequence_destroy(s_sequence);
   }
