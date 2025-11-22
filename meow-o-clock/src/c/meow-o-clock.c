@@ -2,6 +2,7 @@
 
 static Window *s_window;
 static TextLayer *s_time_layer;
+static TextLayer *s_date_layer;
 static BitmapLayer *s_bitmap_layer;
 static GBitmapSequence *s_sequence = NULL;
 static GBitmap *s_bitmap = NULL;
@@ -87,6 +88,13 @@ static void update_time() {
   // Display this time on the TextLayer
   text_layer_set_text(s_time_layer, s_buffer);
 
+  // Write the current date into a buffer
+  static char s_date_buffer[20];
+  strftime(s_date_buffer, sizeof(s_date_buffer), "%a, %d %b %Y", tick_time);
+
+  // Display this date on the date TextLayer
+  text_layer_set_text(s_date_layer, s_date_buffer);
+
   // Determine which animation to show based on time
   uint32_t resource_id = is_daytime(tick_time)
     ? RESOURCE_ID_KITTEN_PLAY_TIME
@@ -118,13 +126,21 @@ static void init() {
   bitmap_layer_set_compositing_mode(s_bitmap_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_bitmap_layer));
 
-  // Create time TextLayer
-  s_time_layer = text_layer_create(GRect(0, 10, bounds.size.w, 50));
+  // Create time TextLayer (vertically centered with date)
+  s_time_layer = text_layer_create(GRect(0, 5, bounds.size.w, 50));
   text_layer_set_background_color(s_time_layer, GColorClear);
   text_layer_set_text_color(s_time_layer, GColorBlack);
   text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
   text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
+
+  // Create date TextLayer
+  s_date_layer = text_layer_create(GRect(0, 48, bounds.size.w, 30));
+  text_layer_set_background_color(s_date_layer, GColorClear);
+  text_layer_set_text_color(s_date_layer, GColorBlack);
+  text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
   // Register with TickTimerService
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
@@ -144,6 +160,7 @@ static void deinit() {
 
   // Destroy layers
   text_layer_destroy(s_time_layer);
+  text_layer_destroy(s_date_layer);
   bitmap_layer_destroy(s_bitmap_layer);
 
   // Destroy bitmaps and sequence
