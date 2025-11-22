@@ -1,0 +1,42 @@
+{
+  "name": "meow-o-clock",
+  "author": "trishtzy",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "Meow O'Clock",
+    "uuid": "944c2c54-7837-4729-92fc-a388a5cf4af8",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery",
+      "flint"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [
+      "dummy"
+    ],
+    "resources": {
+      "media": [
+        {
+          "type": "raw",
+          "name": "KITTEN_PLAY_TIME",
+          "file": "kitten-play-time.png"
+        },
+        {
+          "type": "raw",
+          "name": "KITTEN_SLEEPING",
+          "file": "kitten-sleeping.png"
+        }
+      ]
+    }
+  }
+}
