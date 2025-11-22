@@ -3,6 +3,7 @@
 static Window *s_window;
 static TextLayer *s_time_layer;
 static TextLayer *s_date_layer;
+static TextLayer *s_battery_layer;
 static BitmapLayer *s_bitmap_layer;
 static GBitmapSequence *s_sequence = NULL;
 static GBitmap *s_bitmap = NULL;
@@ -108,6 +109,15 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time();
 }
 
+static void battery_callback(BatteryChargeState state) {
+  // Write the battery percentage into a buffer
+  static char battery_buffer[16];
+  snprintf(battery_buffer, sizeof(battery_buffer), "%d%%", state.charge_percent);
+
+  // Display this on the battery layer
+  text_layer_set_text(s_battery_layer, battery_buffer);
+}
+
 static void init() {
   // Create main window
   s_window = window_create();
@@ -127,7 +137,7 @@ static void init() {
   layer_add_child(window_layer, bitmap_layer_get_layer(s_bitmap_layer));
 
   // Create time TextLayer (vertically centered with date)
-  s_time_layer = text_layer_create(GRect(0, 5, bounds.size.w, 50));
+  s_time_layer = text_layer_create(GRect(0, 10, bounds.size.w, 50));
   text_layer_set_background_color(s_time_layer, GColorClear);
   text_layer_set_text_color(s_time_layer, GColorBlack);
   text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
@@ -135,23 +145,42 @@ static void init() {
   layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
 
   // Create date TextLayer
-  s_date_layer = text_layer_create(GRect(0, 48, bounds.size.w, 30));
+  s_date_layer = text_layer_create(GRect(0, 53, bounds.size.w, 30));
   text_layer_set_background_color(s_date_layer, GColorClear);
   text_layer_set_text_color(s_date_layer, GColorBlack);
   text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
   text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
+  // Create battery TextLayer in top right corner with 5px padding
+  int battery_width = 45;
+  int battery_height = 20;
+  int battery_x = bounds.size.w - battery_width - 5;
+  int battery_y = 0;
+  s_battery_layer = text_layer_create(GRect(battery_x, battery_y, battery_width, battery_height));
+  text_layer_set_background_color(s_battery_layer, GColorClear);
+  text_layer_set_text_color(s_battery_layer, GColorBlack);
+  text_layer_set_font(s_battery_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
+  text_layer_set_text_alignment(s_battery_layer, GTextAlignmentRight);
+  layer_add_child(window_layer, text_layer_get_layer(s_battery_layer));
+
   // Register with TickTimerService
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 
+  // Register for battery level updates
+  battery_state_service_subscribe(battery_callback);
+
   // Make sure the time is displayed from the start and load initial animation
   update_time();
+
+  // Ensure battery level is displayed from the start
+  battery_callback(battery_state_service_peek());
 }
 
 static void deinit() {
   // Unsubscribe from services
   tick_timer_service_unsubscribe();
+  battery_state_service_unsubscribe();
 
   // Cancel timer
   if (s_timer) {
@@ -161,6 +190,7 @@ static void deinit() {
   // Destroy layers
   text_layer_destroy(s_time_layer);
   text_layer_destroy(s_date_layer);
+  text_layer_destroy(s_battery_layer);
   bitmap_layer_destroy(s_bitmap_layer);
 
   // Destroy bitmaps and sequence
