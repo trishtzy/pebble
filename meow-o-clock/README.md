@@ -8,7 +8,7 @@ Animated kitten that plays by day and sleeps by night.
 - **Time Display**: Large, clear time in 24-hour format
 - **Date Display**: Shows day, date, month, and year (e.g., "Sat, 22 Nov 2025")
 - **Battery Indicator**: Icon and percentage display in top right corner
-- **Platform Support**: Compatible with Pebble basalt
+- **Multi-Platform Support**: Compatible with Pebble aplite and basalt
 
 ## Screenshots
 
