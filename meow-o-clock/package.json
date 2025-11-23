@@ -1,8 +1,10 @@
 {
   "name": "meow-o-clock",
   "author": "trishtzy",
-  "version": "1.1.0",
-  "keywords": ["pebble-app"],
+  "version": "1.2.0",
+  "keywords": [
+    "pebble-app"
+  ],
   "private": true,
   "dependencies": {},
   "pebble": {
@@ -11,6 +13,7 @@
     "sdkVersion": "3",
     "enableMultiJS": true,
     "targetPlatforms": [
+      "aplite",
       "basalt"
     ],
     "watchapp": {
@@ -24,14 +27,196 @@
         {
           "type": "raw",
           "name": "KITTEN_PLAY_TIME",
-          "file": "kitten-play-time.png"
+          "file": "kitten-play-time.png",
+          "targetPlatforms": [
+            "basalt"
+          ]
         },
         {
           "type": "raw",
           "name": "KITTEN_SLEEPING",
-          "file": "kitten-sleeping.png"
+          "file": "kitten-sleeping.png",
+          "targetPlatforms": [
+            "basalt"
+          ]
         },
-         {
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_0",
+          "file": "aplite/kitten-yarn-ball-frame-0.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_1",
+          "file": "aplite/kitten-yarn-ball-frame-1.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_2",
+          "file": "aplite/kitten-yarn-ball-frame-2.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_3",
+          "file": "aplite/kitten-yarn-ball-frame-3.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_4",
+          "file": "aplite/kitten-yarn-ball-frame-4.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_5",
+          "file": "aplite/kitten-yarn-ball-frame-5.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_6",
+          "file": "aplite/kitten-yarn-ball-frame-6.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_7",
+          "file": "aplite/kitten-yarn-ball-frame-7.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_8",
+          "file": "aplite/kitten-yarn-ball-frame-8.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_9",
+          "file": "aplite/kitten-yarn-ball-frame-9.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_PLAY_FRAME_10",
+          "file": "aplite/kitten-yarn-ball-frame-10.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_0",
+          "file": "aplite/kitten-sleeping-frame-0.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_1",
+          "file": "aplite/kitten-sleeping-frame-1.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_2",
+          "file": "aplite/kitten-sleeping-frame-2.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_3",
+          "file": "aplite/kitten-sleeping-frame-3.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_4",
+          "file": "aplite/kitten-sleeping-frame-4.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_5",
+          "file": "aplite/kitten-sleeping-frame-5.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_6",
+          "file": "aplite/kitten-sleeping-frame-6.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_7",
+          "file": "aplite/kitten-sleeping-frame-7.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_8",
+          "file": "aplite/kitten-sleeping-frame-8.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_9",
+          "file": "aplite/kitten-sleeping-frame-9.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "KITTEN_SLEEP_FRAME_10",
+          "file": "aplite/kitten-sleeping-frame-10.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
           "type": "bitmap",
           "name": "BATTERY_FULL",
           "file": "battery.png"

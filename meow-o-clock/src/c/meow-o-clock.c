@@ -7,11 +7,42 @@ static TextLayer *s_battery_layer;
 static GBitmap *s_battery_icon = NULL;
 static BitmapLayer *s_battery_icon_layer;
 static BitmapLayer *s_bitmap_layer;
+
+#ifdef PBL_BW
+// Frame-based animation for aplite
+static GBitmap *s_bitmap = NULL;
+static AppTimer *s_timer = NULL;
+static int s_current_frame = 0;
+static bool s_is_playing = true;
+
+#define NUM_PLAY_FRAMES 11
+#define NUM_SLEEP_FRAMES 11
+#define FRAME_DELAY_MS 100
+
+static const uint32_t s_play_frames[NUM_PLAY_FRAMES] = {
+  RESOURCE_ID_KITTEN_PLAY_FRAME_0, RESOURCE_ID_KITTEN_PLAY_FRAME_1,
+  RESOURCE_ID_KITTEN_PLAY_FRAME_2, RESOURCE_ID_KITTEN_PLAY_FRAME_3,
+  RESOURCE_ID_KITTEN_PLAY_FRAME_4, RESOURCE_ID_KITTEN_PLAY_FRAME_5,
+  RESOURCE_ID_KITTEN_PLAY_FRAME_6, RESOURCE_ID_KITTEN_PLAY_FRAME_7,
+  RESOURCE_ID_KITTEN_PLAY_FRAME_8, RESOURCE_ID_KITTEN_PLAY_FRAME_9,
+  RESOURCE_ID_KITTEN_PLAY_FRAME_10
+};
+
+static const uint32_t s_sleep_frames[NUM_SLEEP_FRAMES] = {
+  RESOURCE_ID_KITTEN_SLEEP_FRAME_0, RESOURCE_ID_KITTEN_SLEEP_FRAME_1,
+  RESOURCE_ID_KITTEN_SLEEP_FRAME_2, RESOURCE_ID_KITTEN_SLEEP_FRAME_3,
+  RESOURCE_ID_KITTEN_SLEEP_FRAME_4, RESOURCE_ID_KITTEN_SLEEP_FRAME_5,
+  RESOURCE_ID_KITTEN_SLEEP_FRAME_6, RESOURCE_ID_KITTEN_SLEEP_FRAME_7,
+  RESOURCE_ID_KITTEN_SLEEP_FRAME_8, RESOURCE_ID_KITTEN_SLEEP_FRAME_9,
+  RESOURCE_ID_KITTEN_SLEEP_FRAME_10
+};
+#else
+// APNG-based animation for color platforms
 static GBitmapSequence *s_sequence = NULL;
 static GBitmap *s_bitmap = NULL;
 static AppTimer *s_timer = NULL;
-
 static uint32_t s_current_resource_id = 0;
+#endif
 
 static bool is_daytime(struct tm *tick_time) {
   int hour = tick_time->tm_hour;
@@ -21,6 +52,48 @@ static bool is_daytime(struct tm *tick_time) {
 
 static void timer_handler(void *context);
 
+#ifdef PBL_BW
+// Frame-based animation for aplite
+static void start_animation(bool is_playing) {
+  s_is_playing = is_playing;
+  s_current_frame = 0;
+
+  // Cancel any pending timer
+  if (s_timer) {
+    app_timer_cancel(s_timer);
+    s_timer = NULL;
+  }
+
+  // Start animation
+  s_timer = app_timer_register(0, timer_handler, NULL);
+}
+
+static void timer_handler(void *context) {
+  // Destroy previous bitmap
+  if (s_bitmap) {
+    gbitmap_destroy(s_bitmap);
+  }
+
+  // Get current frame's resource ID
+  const uint32_t *frames = s_is_playing ? s_play_frames : s_sleep_frames;
+  int num_frames = s_is_playing ? NUM_PLAY_FRAMES : NUM_SLEEP_FRAMES;
+
+  // Load current frame
+  s_bitmap = gbitmap_create_with_resource(frames[s_current_frame]);
+
+  // Set the bitmap on the layer
+  bitmap_layer_set_bitmap(s_bitmap_layer, s_bitmap);
+  layer_mark_dirty(bitmap_layer_get_layer(s_bitmap_layer));
+
+  // Advance to next frame
+  s_current_frame = (s_current_frame + 1) % num_frames;
+
+  // Schedule next frame
+  s_timer = app_timer_register(FRAME_DELAY_MS, timer_handler, NULL);
+}
+
+#else
+// APNG-based animation for color platforms
 static void load_sequence(uint32_t resource_id) {
   // Don't reload if already loaded
   if (s_current_resource_id == resource_id) {
@@ -49,7 +122,7 @@ static void load_sequence(uint32_t resource_id) {
     // Create blank bitmap with the correct size
     GSize frame_size = gbitmap_sequence_get_bitmap_size(s_sequence);
 
-    // Create 8-bit bitmap for all platforms (display driver handles conversion)
+    // Always use 8-bit format - APNG decoder outputs 8-bit even for BW platforms
     s_bitmap = gbitmap_create_blank(frame_size, GBitmapFormat8Bit);
 
     // Set the bitmap on the layer
@@ -78,6 +151,7 @@ static void timer_handler(void *context) {
     s_timer = app_timer_register(0, timer_handler, NULL);
   }
 }
+#endif
 
 static void update_time() {
   // Get current time
@@ -99,12 +173,17 @@ static void update_time() {
   text_layer_set_text(s_date_layer, s_date_buffer);
 
   // Determine which animation to show based on time
+#ifdef PBL_BW
+  // Use frame-based animation for aplite
+  bool is_playing = is_daytime(tick_time);
+  start_animation(is_playing);
+#else
+  // Use APNG animation for basalt
   uint32_t resource_id = is_daytime(tick_time)
     ? RESOURCE_ID_KITTEN_PLAY_TIME
     : RESOURCE_ID_KITTEN_SLEEPING;
-
-  // Load the appropriate animation
   load_sequence(resource_id);
+#endif
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
@@ -231,12 +310,21 @@ static void deinit() {
   if (s_battery_icon) {
     gbitmap_destroy(s_battery_icon);
   }
+
+#ifdef PBL_BW
+  // Frame-based animation cleanup
+  if (s_bitmap) {
+    gbitmap_destroy(s_bitmap);
+  }
+#else
+  // APNG animation cleanup
   if (s_sequence) {
     gbitmap_sequence_destroy(s_sequence);
   }
   if (s_bitmap) {
     gbitmap_destroy(s_bitmap);
   }
+#endif
 
   // Destroy window
   window_destroy(s_window);
