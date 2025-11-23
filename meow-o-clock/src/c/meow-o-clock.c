@@ -12,12 +12,16 @@ static BitmapLayer *s_bitmap_layer;
 // Frame-based animation for aplite
 static GBitmap *s_bitmap = NULL;
 static AppTimer *s_timer = NULL;
+static AppTimer *s_animation_stop_timer = NULL;
 static int s_current_frame = 0;
 static bool s_is_playing = true;
+static bool s_animation_active = false;
+static bool s_current_static_is_playing = true;  // Track which static frame is loaded
 
 #define NUM_PLAY_FRAMES 11
 #define NUM_SLEEP_FRAMES 11
 #define FRAME_DELAY_MS 100
+#define ANIMATION_DURATION_MS 3000  // Play animation for 3 seconds
 
 static const uint32_t s_play_frames[NUM_PLAY_FRAMES] = {
   RESOURCE_ID_KITTEN_PLAY_FRAME_0, RESOURCE_ID_KITTEN_PLAY_FRAME_1,
@@ -37,11 +41,15 @@ static const uint32_t s_sleep_frames[NUM_SLEEP_FRAMES] = {
   RESOURCE_ID_KITTEN_SLEEP_FRAME_10
 };
 #else
-// APNG-based animation for color platforms
+// APNG-based animation for basalt
 static GBitmapSequence *s_sequence = NULL;
 static GBitmap *s_bitmap = NULL;
 static AppTimer *s_timer = NULL;
+static AppTimer *s_animation_stop_timer = NULL;
 static uint32_t s_current_resource_id = 0;
+static bool s_animation_active = false;
+
+#define ANIMATION_DURATION_MS 3000  // Play animation for 3 seconds
 #endif
 
 static bool is_daytime(struct tm *tick_time) {
@@ -51,24 +59,76 @@ static bool is_daytime(struct tm *tick_time) {
 }
 
 static void timer_handler(void *context);
+static void stop_animation_handler(void *context);
+static void accel_data_handler(AccelData *data, uint32_t num_samples);
+static void load_static_frame(bool is_playing);
 
 #ifdef PBL_BW
 // Frame-based animation for aplite
+static void load_static_frame(bool is_playing) {
+  // Don't reload if already showing the correct static frame
+  if (s_current_static_is_playing == is_playing && s_bitmap != NULL) {
+    return;
+  }
+
+  // Destroy previous bitmap if exists
+  if (s_bitmap) {
+    gbitmap_destroy(s_bitmap);
+  }
+
+  // Load frame 0 of the appropriate animation
+  const uint32_t *frames = is_playing ? s_play_frames : s_sleep_frames;
+  s_bitmap = gbitmap_create_with_resource(frames[0]);
+
+  // Set the bitmap on the layer
+  bitmap_layer_set_bitmap(s_bitmap_layer, s_bitmap);
+  layer_mark_dirty(bitmap_layer_get_layer(s_bitmap_layer));
+
+  // Track which static frame is loaded
+  s_current_static_is_playing = is_playing;
+}
+
 static void start_animation(bool is_playing) {
   s_is_playing = is_playing;
   s_current_frame = 0;
+  s_animation_active = true;
 
-  // Cancel any pending timer
+  // Cancel any pending timers
+  if (s_timer) {
+    app_timer_cancel(s_timer);
+    s_timer = NULL;
+  }
+  if (s_animation_stop_timer) {
+    app_timer_cancel(s_animation_stop_timer);
+    s_animation_stop_timer = NULL;
+  }
+
+  // Start animation
+  s_timer = app_timer_register(0, timer_handler, NULL);
+
+  // Schedule animation to stop after duration
+  s_animation_stop_timer = app_timer_register(ANIMATION_DURATION_MS, stop_animation_handler, NULL);
+}
+
+static void stop_animation_handler(void *context) {
+  s_animation_active = false;
+
+  // Cancel animation timer
   if (s_timer) {
     app_timer_cancel(s_timer);
     s_timer = NULL;
   }
 
-  // Start animation
-  s_timer = app_timer_register(0, timer_handler, NULL);
+  // Revert to static first frame
+  load_static_frame(s_is_playing);
 }
 
 static void timer_handler(void *context) {
+  // Stop if animation is no longer active
+  if (!s_animation_active) {
+    return;
+  }
+
   // Destroy previous bitmap
   if (s_bitmap) {
     gbitmap_destroy(s_bitmap);
@@ -94,6 +154,42 @@ static void timer_handler(void *context) {
 
 #else
 // APNG-based animation for color platforms
+static void load_static_frame(bool is_playing) {
+  uint32_t resource_id = is_playing ? RESOURCE_ID_KITTEN_PLAY_TIME : RESOURCE_ID_KITTEN_SLEEPING;
+
+  // Don't reload if already loaded
+  if (s_current_resource_id == resource_id) {
+    return;
+  }
+
+  // Clean up existing sequence and bitmap
+  if (s_sequence) {
+    gbitmap_sequence_destroy(s_sequence);
+    s_sequence = NULL;
+  }
+  if (s_bitmap) {
+    gbitmap_destroy(s_bitmap);
+    s_bitmap = NULL;
+  }
+
+  // Load the sequence
+  s_sequence = gbitmap_sequence_create_with_resource(resource_id);
+  if (s_sequence) {
+    // Create blank bitmap with the correct size
+    GSize frame_size = gbitmap_sequence_get_bitmap_size(s_sequence);
+    s_bitmap = gbitmap_create_blank(frame_size, GBitmapFormat8Bit);
+
+    // Load first frame only (no animation)
+    gbitmap_sequence_update_bitmap_next_frame(s_sequence, s_bitmap, NULL);
+
+    // Set the bitmap on the layer
+    bitmap_layer_set_bitmap(s_bitmap_layer, s_bitmap);
+    layer_mark_dirty(bitmap_layer_get_layer(s_bitmap_layer));
+
+    s_current_resource_id = resource_id;
+  }
+}
+
 static void load_sequence(uint32_t resource_id) {
   // Don't reload if already loaded
   if (s_current_resource_id == resource_id) {
@@ -110,10 +206,14 @@ static void load_sequence(uint32_t resource_id) {
     s_bitmap = NULL;
   }
 
-  // Cancel any pending timer
+  // Cancel any pending timers
   if (s_timer) {
     app_timer_cancel(s_timer);
     s_timer = NULL;
+  }
+  if (s_animation_stop_timer) {
+    app_timer_cancel(s_animation_stop_timer);
+    s_animation_stop_timer = NULL;
   }
 
   // Load the new sequence
@@ -130,11 +230,36 @@ static void load_sequence(uint32_t resource_id) {
 
     // Start animation
     s_current_resource_id = resource_id;
+    s_animation_active = true;
     s_timer = app_timer_register(0, timer_handler, NULL);
+
+    // Schedule animation to stop after duration
+    s_animation_stop_timer = app_timer_register(ANIMATION_DURATION_MS, stop_animation_handler, NULL);
   }
 }
 
+static void stop_animation_handler(void *context) {
+  s_animation_active = false;
+
+  // Cancel animation timer
+  if (s_timer) {
+    app_timer_cancel(s_timer);
+    s_timer = NULL;
+  }
+
+  // Revert to static first frame
+  time_t temp = time(NULL);
+  struct tm *tick_time = localtime(&temp);
+  bool is_playing = is_daytime(tick_time);
+  load_static_frame(is_playing);
+}
+
 static void timer_handler(void *context) {
+  // Stop if animation is no longer active
+  if (!s_animation_active) {
+    return;
+  }
+
   uint32_t next_delay;
 
   // Advance to the next APNG frame, and get the delay for this frame
@@ -172,22 +297,59 @@ static void update_time() {
   // Display this date on the date TextLayer
   text_layer_set_text(s_date_layer, s_date_buffer);
 
-  // Determine which animation to show based on time
-#ifdef PBL_BW
-  // Use frame-based animation for aplite
+  // Load static frame based on time of day
   bool is_playing = is_daytime(tick_time);
-  start_animation(is_playing);
-#else
-  // Use APNG animation for basalt
-  uint32_t resource_id = is_daytime(tick_time)
-    ? RESOURCE_ID_KITTEN_PLAY_TIME
-    : RESOURCE_ID_KITTEN_SLEEPING;
-  load_sequence(resource_id);
-#endif
+  load_static_frame(is_playing);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time();
+}
+
+static void accel_data_handler(AccelData *data, uint32_t num_samples) {
+  static bool was_inactive = true;
+
+  // Define active zone: watch tilted towards user with screen facing user
+  // Based on pebble_glancing_demo zones
+  #define ACTIVE_ZONE_X_MIN -500
+  #define ACTIVE_ZONE_X_MAX 500
+  #define ACTIVE_ZONE_Y_MIN -900
+  #define ACTIVE_ZONE_Y_MAX 200
+  #define ACTIVE_ZONE_Z_MIN -1100
+  #define ACTIVE_ZONE_Z_MAX 0
+
+  // Check if any sample is in the active zone
+  bool in_active_zone = false;
+  for (uint32_t i = 0; i < num_samples; i++) {
+    if (data[i].x >= ACTIVE_ZONE_X_MIN && data[i].x <= ACTIVE_ZONE_X_MAX &&
+        data[i].y >= ACTIVE_ZONE_Y_MIN && data[i].y <= ACTIVE_ZONE_Y_MAX &&
+        data[i].z >= ACTIVE_ZONE_Z_MIN && data[i].z <= ACTIVE_ZONE_Z_MAX) {
+      in_active_zone = true;
+      break;
+    }
+  }
+
+  // Trigger animation when transitioning from inactive to active (wrist flick)
+  if (in_active_zone && was_inactive) {
+    // Get current time to determine which animation to play
+    time_t temp = time(NULL);
+    struct tm *tick_time = localtime(&temp);
+
+    // Determine which animation to show based on time
+#ifdef PBL_BW
+    // Use frame-based animation for aplite
+    bool is_playing = is_daytime(tick_time);
+    start_animation(is_playing);
+#else
+    // Use APNG animation for basalt
+    uint32_t resource_id = is_daytime(tick_time)
+      ? RESOURCE_ID_KITTEN_PLAY_TIME
+      : RESOURCE_ID_KITTEN_SLEEPING;
+    load_sequence(resource_id);
+#endif
+  }
+
+  was_inactive = !in_active_zone;
 }
 
 static void battery_callback(BatteryChargeState state) {
@@ -282,7 +444,12 @@ static void init() {
   // Register for battery level updates
   battery_state_service_subscribe(battery_callback);
 
-  // Make sure the time is displayed from the start and load initial animation
+  // Register for accelerometer data to detect wrist flicks
+  // Sample at 25Hz (25 samples per second) with 25 samples per callback
+  accel_data_service_subscribe(25, accel_data_handler);
+  accel_service_set_sampling_rate(ACCEL_SAMPLING_25HZ);
+
+  // Make sure the time is displayed from the start
   update_time();
 
   // Ensure battery level is displayed from the start
@@ -293,10 +460,14 @@ static void deinit() {
   // Unsubscribe from services
   tick_timer_service_unsubscribe();
   battery_state_service_unsubscribe();
+  accel_data_service_unsubscribe();
 
-  // Cancel timer
+  // Cancel timers
   if (s_timer) {
     app_timer_cancel(s_timer);
+  }
+  if (s_animation_stop_timer) {
+    app_timer_cancel(s_animation_stop_timer);
   }
 
   // Destroy layers
