@@ -15,7 +15,7 @@
 
   outputs = { self, nixpkgs, devenv, systems, ... } @ inputs:
     let
-      forEachSystem = nixpkgs.lib.genAttrs [ "x86_64-darwin" "aarch64-darwin" ];
+      forEachSystem = nixpkgs.lib.genAttrs [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
     in
     {
       packages = forEachSystem (system: {
