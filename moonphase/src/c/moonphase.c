@@ -56,9 +56,11 @@ static void draw_moon(GContext *ctx, GPoint center, int r, int moon_age)
 	int32_t phase_angle = (int32_t)(moon_age * 100) * TRIG_MAX_ANGLE / 2953;
 	int32_t cos_phase = cos_lookup(phase_angle);
 
-	graphics_context_set_fill_color(ctx, GColorBlack);
+	graphics_context_set_fill_color(
+		ctx, PBL_IF_COLOR_ELSE(GColorOxfordBlue, GColorBlack));
 	graphics_fill_circle(ctx, center, r);
-	graphics_context_set_stroke_color(ctx, GColorWhite);
+	graphics_context_set_stroke_color(
+		ctx, PBL_IF_COLOR_ELSE(GColorPastelYellow, GColorWhite));
 
 	bool waxing = (moon_age < 15);
 
@@ -80,7 +82,8 @@ static void draw_moon(GContext *ctx, GPoint center, int r, int moon_age)
 		}
 	}
 
-	graphics_context_set_stroke_color(ctx, GColorWhite);
+	graphics_context_set_stroke_color(
+		ctx, PBL_IF_COLOR_ELSE(GColorChromeYellow, GColorWhite));
 	graphics_draw_circle(ctx, center, r);
 }
 
