@@ -281,9 +281,9 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 		snprintf(date_str, sizeof(date_str), "%s|%d",
 			 DAY_NAMES[t->tm_wday], t->tm_mday);
 		GFont date_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
-		GRect date_rect = PBL_IF_ROUND_ELSE(
-			GRect(center.x + 28, center.y - 7, 46, 14),
-			GRect(center.x + 4, center.y - 7, 42, 14));
+		GRect date_rect =
+			PBL_IF_ROUND_ELSE(GRect(116, center.y - 7, 40, 14),
+					  GRect(84, center.y - 7, 36, 14));
 		graphics_context_set_fill_color(ctx, bg);
 		graphics_fill_rect(ctx, date_rect, 0, GCornerNone);
 		graphics_context_set_stroke_color(ctx, fg);
