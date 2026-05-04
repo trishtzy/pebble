@@ -13,10 +13,10 @@ static Layer *s_bg_layer, *s_moon_layer, *s_hands_layer;
 static GPath *s_minute_arrow, *s_hour_arrow;
 
 static const GPathInfo MINUTE_HAND_POINTS = {
-	.num_points = 3, .points = (GPoint[]){{-4, 12}, {4, 12}, {0, -52}}};
+	.num_points = 3, .points = (GPoint[]){{-4, 12}, {4, 12}, {0, -62}}};
 
 static const GPathInfo HOUR_HAND_POINTS = {
-	.num_points = 3, .points = (GPoint[]){{-5, 12}, {5, 12}, {0, -36}}};
+	.num_points = 3, .points = (GPoint[]){{-5, 12}, {5, 12}, {0, -40}}};
 
 // ---- Moon phase ----
 
