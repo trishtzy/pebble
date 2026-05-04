@@ -152,13 +152,51 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 	struct tm *t = localtime(&now);
 	bool day = is_daytime(t);
 
-	GColor bg = PBL_IF_COLOR_ELSE(day ? GColorWhite : GColorBlack,
-				      day ? GColorWhite : GColorBlack);
-	GColor fg = PBL_IF_COLOR_ELSE(day ? GColorBlack : GColorWhite,
-				      day ? GColorBlack : GColorWhite);
+	GColor bg = day ? GColorWhite : GColorBlack;
+	GColor fg = day ? GColorBlack : GColorWhite;
 
+#ifdef PBL_COLOR
+	if (day) {
+		// Simulated sky gradient: VividCerulean → PictonBlue → Celeste
+		// → White
+		static const GColor SKY[4] = {
+			{GColorVividCeruleanARGB8},
+			{GColorPictonBlueARGB8},
+			{GColorCelesteARGB8},
+			{GColorWhiteARGB8},
+		};
+		int bh = bounds.size.h / 4;
+		for (int i = 0; i < 4; i++) {
+			graphics_context_set_fill_color(ctx, SKY[i]);
+			int h = (i == 3) ? bounds.size.h - i * bh : bh + 1;
+			graphics_fill_rect(ctx,
+					   GRect(0, i * bh, bounds.size.w, h),
+					   0, GCornerNone);
+		}
+		// Clouds (upper corners, away from hands and markers)
+		graphics_context_set_fill_color(ctx, GColorWhite);
+		// Cloud A — top left
+		graphics_fill_circle(ctx, GPoint(20, 24), 7);
+		graphics_fill_circle(ctx, GPoint(11, 28), 5);
+		graphics_fill_circle(ctx, GPoint(29, 28), 5);
+		graphics_fill_circle(ctx, GPoint(22, 18), 5);
+		// Cloud B — top right
+		graphics_fill_circle(ctx, GPoint(116, 16), 8);
+		graphics_fill_circle(ctx, GPoint(106, 21), 6);
+		graphics_fill_circle(ctx, GPoint(126, 21), 6);
+		graphics_fill_circle(ctx, GPoint(118, 9), 5);
+		// Cloud C — right edge, mid-upper
+		graphics_fill_circle(ctx, GPoint(134, 50), 5);
+		graphics_fill_circle(ctx, GPoint(127, 54), 4);
+		graphics_fill_circle(ctx, GPoint(140, 54), 4);
+	} else {
+		graphics_context_set_fill_color(ctx, GColorBlack);
+		graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+	}
+#else
 	graphics_context_set_fill_color(ctx, bg);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+#endif
 
 	// Stars only at night
 	if (!day) {
