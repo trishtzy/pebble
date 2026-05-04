@@ -14,7 +14,7 @@
 #define DAY_END 20
 
 static Window *s_window;
-static Layer *s_bg_layer, *s_subdial_layer, *s_hands_layer;
+static Layer *s_sky_layer, *s_subdial_layer, *s_markers_layer, *s_hands_layer;
 static GPath *s_minute_arrow, *s_hour_arrow;
 
 static const GPathInfo MINUTE_HAND_POINTS = {
@@ -143,22 +143,16 @@ static const uint8_t STAR_TWINKLE[NUM_STARS] = {
 
 // ---- Layer callbacks ----
 
-static void bg_update_proc(Layer *layer, GContext *ctx)
+static void sky_update_proc(Layer *layer, GContext *ctx)
 {
 	GRect bounds = layer_get_bounds(layer);
-	GPoint center = GPoint(CLOCK_CX, CLOCK_CY);
 
 	time_t now = time(NULL);
 	struct tm *t = localtime(&now);
 	bool day = is_daytime(t);
 
-	GColor bg = day ? GColorWhite : GColorBlack;
-	GColor fg = day ? GColorBlack : GColorWhite;
-
 #ifdef PBL_COLOR
 	if (day) {
-		// Simulated sky gradient: VividCerulean → PictonBlue → Celeste
-		// → White
 		static const GColor SKY[4] = {
 			{GColorVividCeruleanARGB8},
 			{GColorPictonBlueARGB8},
@@ -173,7 +167,6 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 					   GRect(0, i * bh, bounds.size.w, h),
 					   0, GCornerNone);
 		}
-		// Clouds (upper corners, away from hands and markers)
 		graphics_context_set_fill_color(ctx, GColorWhite);
 		// Cloud A — top left
 		graphics_fill_circle(ctx, GPoint(20, 24), 7);
@@ -194,11 +187,10 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 		graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 	}
 #else
-	graphics_context_set_fill_color(ctx, bg);
+	graphics_context_set_fill_color(ctx, day ? GColorWhite : GColorBlack);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 #endif
 
-	// Stars only at night
 	if (!day) {
 		graphics_context_set_fill_color(ctx, GColorWhite);
 		for (int i = 0; i < NUM_STARS; i++) {
@@ -208,12 +200,26 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 					     STAR_RADIUS[i]);
 		}
 	}
+}
+
+static void markers_update_proc(Layer *layer, GContext *ctx)
+{
+	GPoint center = GPoint(CLOCK_CX, CLOCK_CY);
+
+	time_t now = time(NULL);
+	struct tm *t = localtime(&now);
+	bool day = is_daytime(t);
+
+	GColor bg = day ? GColorWhite : GColorBlack;
+	GColor fg = day ? GColorBlack : GColorWhite;
 
 	// Hour markers (skip 6 o'clock — subdial)
 #if MARKER_STYLE == 2
 	graphics_context_set_stroke_color(ctx, fg);
 	for (int i = 1; i <= 12; i++) {
-		if (i == 6)
+		if (day && i == 12)
+			continue;
+		if (!day && i == 6)
 			continue;
 		int32_t angle = TRIG_MAX_ANGLE * i / 12;
 		GPoint outer = {.x = (int16_t)(sin_lookup(angle) * 62 /
@@ -232,16 +238,20 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 	}
 #else
 	static const char *const LABELS[2][13] = {
-		{"", "1", "2", "3", "4", "5", "", "7", "8", "9", "10", "11",
+		{"", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11",
 		 "12"},
-		{"", "I", "II", "III", "IV", "V", "", "VII", "VIII", "IX", "X",
-		 "XI", "XII"},
+		{"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX",
+		 "X", "XI", "XII"},
 	};
 	const char *const *label = LABELS[MARKER_STYLE == 1 ? 1 : 0];
 	GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
 	graphics_context_set_text_color(ctx, fg);
 	for (int i = 1; i <= 12; i++) {
-		if (i == 6)
+		// Day: sun tracks through 12 o'clock, moon sits at 6 o'clock at
+		// night
+		if (day && i == 12)
+			continue;
+		if (!day && i == 6)
 			continue;
 		int32_t angle = TRIG_MAX_ANGLE * i / 12;
 		int32_t sin_a = sin_lookup(angle);
@@ -297,13 +307,14 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 
 static void subdial_update_proc(Layer *layer, GContext *ctx)
 {
-	GPoint subdial_center = GPoint(CLOCK_CX, CLOCK_CY + MOON_OFFSET_Y);
 	time_t now = time(NULL);
 	struct tm *t = localtime(&now);
 	if (is_daytime(t)) {
-		draw_sun(ctx, subdial_center, MOON_RADIUS);
+		GPoint sun_pos = GPoint(CLOCK_CX, CLOCK_CY - MOON_OFFSET_Y);
+		draw_sun(ctx, sun_pos, MOON_RADIUS);
 	} else {
-		draw_moon(ctx, subdial_center, MOON_RADIUS, get_moon_age(t));
+		GPoint moon_pos = GPoint(CLOCK_CX, CLOCK_CY + MOON_OFFSET_Y);
+		draw_moon(ctx, moon_pos, MOON_RADIUS, get_moon_age(t));
 	}
 }
 
@@ -352,13 +363,17 @@ static void window_load(Window *window)
 	GRect bounds = layer_get_bounds(window_layer);
 	GPoint center = GPoint(CLOCK_CX, CLOCK_CY);
 
-	s_bg_layer = layer_create(bounds);
-	layer_set_update_proc(s_bg_layer, bg_update_proc);
-	layer_add_child(window_layer, s_bg_layer);
+	s_sky_layer = layer_create(bounds);
+	layer_set_update_proc(s_sky_layer, sky_update_proc);
+	layer_add_child(window_layer, s_sky_layer);
 
 	s_subdial_layer = layer_create(bounds);
 	layer_set_update_proc(s_subdial_layer, subdial_update_proc);
 	layer_add_child(window_layer, s_subdial_layer);
+
+	s_markers_layer = layer_create(bounds);
+	layer_set_update_proc(s_markers_layer, markers_update_proc);
+	layer_add_child(window_layer, s_markers_layer);
 
 	s_hands_layer = layer_create(bounds);
 	layer_set_update_proc(s_hands_layer, hands_update_proc);
@@ -374,8 +389,9 @@ static void window_unload(Window *window)
 {
 	gpath_destroy(s_minute_arrow);
 	gpath_destroy(s_hour_arrow);
-	layer_destroy(s_bg_layer);
+	layer_destroy(s_sky_layer);
 	layer_destroy(s_subdial_layer);
+	layer_destroy(s_markers_layer);
 	layer_destroy(s_hands_layer);
 }
 
