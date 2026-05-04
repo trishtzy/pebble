@@ -1,0 +1,32 @@
+{
+  "name": "moonphase",
+  "author": "trishtzy",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app",
+    "watchface",
+    "moonphase",
+    "analog"
+  ],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "Moon Phase",
+    "uuid": "e7a3c8f1-9d42-4b61-a0e7-2f8d5c3b1a94",
+    "sdkVersion": "3",
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery",
+      "flint"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "resources": {
+      "media": []
+    }
+  }
+}
