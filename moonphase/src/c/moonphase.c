@@ -10,8 +10,11 @@
 // Marker style: 0 = numbers, 1 = roman numerals, 2 = ticks
 #define MARKER_STYLE 0
 
+#define DAY_START 6
+#define DAY_END 20
+
 static Window *s_window;
-static Layer *s_bg_layer, *s_moon_layer, *s_hands_layer;
+static Layer *s_bg_layer, *s_subdial_layer, *s_hands_layer;
 static GPath *s_minute_arrow, *s_hour_arrow;
 
 static const GPathInfo MINUTE_HAND_POINTS = {
@@ -19,6 +22,11 @@ static const GPathInfo MINUTE_HAND_POINTS = {
 
 static const GPathInfo HOUR_HAND_POINTS = {
 	.num_points = 3, .points = (GPoint[]){{-5, 12}, {5, 12}, {0, -40}}};
+
+static bool is_daytime(struct tm *t)
+{
+	return t->tm_hour >= DAY_START && t->tm_hour < DAY_END;
+}
 
 // ---- Moon phase ----
 
@@ -30,8 +38,6 @@ static int isqrt(int n)
 	return x - 1;
 }
 
-// Returns moon age in days 0–29 (0 = new moon, ~15 = full moon).
-// Uses Julian Day Number arithmetic against the Jan 6 2000 new moon.
 static int get_moon_age(struct tm *t)
 {
 	int year = t->tm_year + 1900;
@@ -42,17 +48,13 @@ static int get_moon_age(struct tm *t)
 	int m = month + 12 * a - 3;
 	long jdn = (long)day + (153 * m + 2) / 5 + 365L * y + y / 4 - y / 100 +
 		   y / 400 - 32045;
-	long days = jdn - 2451550L; // days since JDN of 2000-01-06 new moon
+	long days = jdn - 2451550L;
 	long h = (days * 100L) % 2953L;
 	if (h < 0)
 		h += 2953L;
-	return (int)(h / 100); // 0–29
+	return (int)(h / 100);
 }
 
-// Draws the illuminated portion of the moon row-by-row using Pebble integer
-// trig. Algorithm: terminator x = cw * cos(phase_angle).
-//   Waxing: illuminate right of terminator; Waning: illuminate left of
-//   -terminator.
 static void draw_moon(GContext *ctx, GPoint center, int r, int moon_age)
 {
 	int32_t phase_angle = (int32_t)(moon_age * 100) * TRIG_MAX_ANGLE / 2953;
@@ -79,14 +81,42 @@ static void draw_moon(GContext *ctx, GPoint center, int r, int moon_age)
 			p1 = GPoint(center.x - cw, center.y + dy);
 			p2 = GPoint(center.x - tx, center.y + dy);
 		}
-		if (p1.x <= p2.x) {
+		if (p1.x <= p2.x)
 			graphics_draw_line(ctx, p1, p2);
-		}
 	}
 
 	graphics_context_set_stroke_color(
 		ctx, PBL_IF_COLOR_ELSE(GColorChromeYellow, GColorWhite));
 	graphics_draw_circle(ctx, center, r);
+}
+
+static void draw_sun(GContext *ctx, GPoint center, int r)
+{
+	GColor sun_color = PBL_IF_COLOR_ELSE(GColorChromeYellow, GColorBlack);
+
+	graphics_context_set_fill_color(ctx, sun_color);
+	graphics_fill_circle(ctx, center, r);
+
+	graphics_context_set_stroke_color(ctx, sun_color);
+	graphics_draw_circle(ctx, center, r);
+
+	// 8 rays
+	for (int i = 0; i < 8; i++) {
+		int32_t angle = TRIG_MAX_ANGLE * i / 8;
+		GPoint p1 = {.x = (int16_t)(sin_lookup(angle) * (r + 3) /
+					    TRIG_MAX_RATIO) +
+				  center.x,
+			     .y = (int16_t)(-cos_lookup(angle) * (r + 3) /
+					    TRIG_MAX_RATIO) +
+				  center.y};
+		GPoint p2 = {.x = (int16_t)(sin_lookup(angle) * (r + 8) /
+					    TRIG_MAX_RATIO) +
+				  center.x,
+			     .y = (int16_t)(-cos_lookup(angle) * (r + 8) /
+					    TRIG_MAX_RATIO) +
+				  center.y};
+		graphics_draw_line(ctx, p1, p2);
+	}
 }
 
 // ---- Stars ----
@@ -101,13 +131,11 @@ static const GPoint STAR_POSITIONS[NUM_STARS] = {
 	{120, 38},  {15, 95},  {32, 140}, {118, 90},  {60, 30},
 };
 
-// 1=small, 2=medium
 static const uint8_t STAR_RADIUS[NUM_STARS] = {
 	1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2,
 	1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1,
 };
 
-// Each star twinkles off for 1 second every 15s, staggered by offset
 static const uint8_t STAR_TWINKLE[NUM_STARS] = {
 	0,  3,	6, 9, 12, 1,  4, 7, 10, 13, 2, 5, 8,
 	11, 14, 0, 4, 8,  12, 2, 6, 10, 1,  9, 5,
@@ -120,23 +148,32 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 	GRect bounds = layer_get_bounds(layer);
 	GPoint center = GPoint(CLOCK_CX, CLOCK_CY);
 
-	graphics_context_set_fill_color(ctx, GColorBlack);
-	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-
-	// Twinkling stars
 	time_t now = time(NULL);
 	struct tm *t = localtime(&now);
-	graphics_context_set_fill_color(ctx, GColorWhite);
-	for (int i = 0; i < NUM_STARS; i++) {
-		if ((t->tm_sec % 15) == STAR_TWINKLE[i])
-			continue; // this star is off this second
-		graphics_fill_circle(ctx, STAR_POSITIONS[i], STAR_RADIUS[i]);
+	bool day = is_daytime(t);
+
+	GColor bg = PBL_IF_COLOR_ELSE(day ? GColorWhite : GColorBlack,
+				      day ? GColorWhite : GColorBlack);
+	GColor fg = PBL_IF_COLOR_ELSE(day ? GColorBlack : GColorWhite,
+				      day ? GColorBlack : GColorWhite);
+
+	graphics_context_set_fill_color(ctx, bg);
+	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+	// Stars only at night
+	if (!day) {
+		graphics_context_set_fill_color(ctx, GColorWhite);
+		for (int i = 0; i < NUM_STARS; i++) {
+			if ((t->tm_sec % 15) == STAR_TWINKLE[i])
+				continue;
+			graphics_fill_circle(ctx, STAR_POSITIONS[i],
+					     STAR_RADIUS[i]);
+		}
 	}
 
-	// Hour markers (skip 6 o'clock — moon subdial)
+	// Hour markers (skip 6 o'clock — subdial)
 #if MARKER_STYLE == 2
-	// Ticks
-	graphics_context_set_stroke_color(ctx, GColorWhite);
+	graphics_context_set_stroke_color(ctx, fg);
 	for (int i = 1; i <= 12; i++) {
 		if (i == 6)
 			continue;
@@ -164,7 +201,7 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 	};
 	const char *const *label = LABELS[MARKER_STYLE == 1 ? 1 : 0];
 	GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
-	graphics_context_set_fill_color(ctx, GColorWhite);
+	graphics_context_set_text_color(ctx, fg);
 	for (int i = 1; i <= 12; i++) {
 		if (i == 6)
 			continue;
@@ -197,14 +234,39 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 			GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
 	}
 #endif
+
+	// DAY|DATE on one line, vertically centred at the 3 o'clock marker
+	{
+		static const char *const DAY_NAMES[] = {
+			"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+		char date_str[10];
+		snprintf(date_str, sizeof(date_str), "%s|%d",
+			 DAY_NAMES[t->tm_wday], t->tm_mday);
+		GFont date_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+		GRect date_rect = PBL_IF_ROUND_ELSE(
+			GRect(center.x + 28, center.y - 7, 46, 14),
+			GRect(center.x + 4, center.y - 7, 42, 14));
+		graphics_context_set_fill_color(ctx, bg);
+		graphics_fill_rect(ctx, date_rect, 0, GCornerNone);
+		graphics_context_set_stroke_color(ctx, fg);
+		graphics_draw_rect(ctx, date_rect);
+		graphics_context_set_text_color(ctx, fg);
+		graphics_draw_text(ctx, date_str, date_font, date_rect,
+				   GTextOverflowModeWordWrap,
+				   GTextAlignmentCenter, NULL);
+	}
 }
 
-static void moon_update_proc(Layer *layer, GContext *ctx)
+static void subdial_update_proc(Layer *layer, GContext *ctx)
 {
-	GPoint moon_center = GPoint(CLOCK_CX, CLOCK_CY + MOON_OFFSET_Y);
+	GPoint subdial_center = GPoint(CLOCK_CX, CLOCK_CY + MOON_OFFSET_Y);
 	time_t now = time(NULL);
 	struct tm *t = localtime(&now);
-	draw_moon(ctx, moon_center, MOON_RADIUS, get_moon_age(t));
+	if (is_daytime(t)) {
+		draw_sun(ctx, subdial_center, MOON_RADIUS);
+	} else {
+		draw_moon(ctx, subdial_center, MOON_RADIUS, get_moon_age(t));
+	}
 }
 
 static void hands_update_proc(Layer *layer, GContext *ctx)
@@ -212,9 +274,13 @@ static void hands_update_proc(Layer *layer, GContext *ctx)
 	GPoint center = GPoint(CLOCK_CX, CLOCK_CY);
 	time_t now = time(NULL);
 	struct tm *t = localtime(&now);
+	bool day = is_daytime(t);
 
-	graphics_context_set_fill_color(ctx, GColorWhite);
-	graphics_context_set_stroke_color(ctx, GColorBlack);
+	GColor hand_fill = day ? GColorBlack : GColorWhite;
+	GColor hand_stroke = day ? GColorWhite : GColorBlack;
+
+	graphics_context_set_fill_color(ctx, hand_fill);
+	graphics_context_set_stroke_color(ctx, hand_stroke);
 
 	gpath_rotate_to(s_minute_arrow, TRIG_MAX_ANGLE * t->tm_min / 60);
 	gpath_draw_filled(ctx, s_minute_arrow);
@@ -228,7 +294,7 @@ static void hands_update_proc(Layer *layer, GContext *ctx)
 	gpath_draw_outline(ctx, s_hour_arrow);
 
 	// Center pivot dot
-	graphics_context_set_fill_color(ctx, GColorBlack);
+	graphics_context_set_fill_color(ctx, hand_stroke);
 	graphics_fill_rect(ctx, GRect(center.x - 2, center.y - 2, 5, 5), 0,
 			   GCornerNone);
 }
@@ -252,9 +318,9 @@ static void window_load(Window *window)
 	layer_set_update_proc(s_bg_layer, bg_update_proc);
 	layer_add_child(window_layer, s_bg_layer);
 
-	s_moon_layer = layer_create(bounds);
-	layer_set_update_proc(s_moon_layer, moon_update_proc);
-	layer_add_child(window_layer, s_moon_layer);
+	s_subdial_layer = layer_create(bounds);
+	layer_set_update_proc(s_subdial_layer, subdial_update_proc);
+	layer_add_child(window_layer, s_subdial_layer);
 
 	s_hands_layer = layer_create(bounds);
 	layer_set_update_proc(s_hands_layer, hands_update_proc);
@@ -271,7 +337,7 @@ static void window_unload(Window *window)
 	gpath_destroy(s_minute_arrow);
 	gpath_destroy(s_hour_arrow);
 	layer_destroy(s_bg_layer);
-	layer_destroy(s_moon_layer);
+	layer_destroy(s_subdial_layer);
 	layer_destroy(s_hands_layer);
 }
 
