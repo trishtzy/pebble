@@ -87,6 +87,30 @@ static void draw_moon(GContext *ctx, GPoint center, int r, int moon_age)
 	graphics_draw_circle(ctx, center, r);
 }
 
+// ---- Stars ----
+
+#define NUM_STARS 25
+
+static const GPoint STAR_POSITIONS[NUM_STARS] = {
+	{8, 12},    {28, 6},   {52, 18},  {80, 5},    {108, 14},
+	{130, 8},   {138, 35}, {140, 68}, {136, 105}, {128, 148},
+	{108, 162}, {78, 165}, {48, 160}, {20, 152},  {6, 118},
+	{4, 82},    {10, 48},  {18, 25},  {42, 10},   {95, 22},
+	{120, 38},  {15, 95},  {32, 140}, {118, 90},  {60, 30},
+};
+
+// 0=tiny(1px), 1=small, 2=medium
+static const uint8_t STAR_RADIUS[NUM_STARS] = {
+	1, 0, 2, 1, 0, 2, 1, 0, 1, 2, 0, 1, 2,
+	0, 1, 2, 0, 1, 0, 2, 1, 0, 2, 1, 0,
+};
+
+// Each star twinkles off for 1 second every 15s, staggered by offset
+static const uint8_t STAR_TWINKLE[NUM_STARS] = {
+	0,  3,	6, 9, 12, 1,  4, 7, 10, 13, 2, 5, 8,
+	11, 14, 0, 4, 8,  12, 2, 6, 10, 1,  9, 5,
+};
+
 // ---- Layer callbacks ----
 
 static void bg_update_proc(Layer *layer, GContext *ctx)
@@ -96,6 +120,16 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 
 	graphics_context_set_fill_color(ctx, GColorBlack);
 	graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+	// Twinkling stars
+	time_t now = time(NULL);
+	struct tm *t = localtime(&now);
+	graphics_context_set_fill_color(ctx, GColorWhite);
+	for (int i = 0; i < NUM_STARS; i++) {
+		if ((t->tm_sec % 15) == STAR_TWINKLE[i])
+			continue; // this star is off this second
+		graphics_fill_circle(ctx, STAR_POSITIONS[i], STAR_RADIUS[i]);
+	}
 
 	// 11 tick marks (skip 6 o'clock — the moon subdial sits there)
 	graphics_context_set_stroke_color(ctx, GColorWhite);
@@ -206,7 +240,7 @@ static void init(void)
 						     .unload = window_unload,
 					     });
 	window_stack_push(s_window, true);
-	tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+	tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
 }
 
 static void deinit(void)
