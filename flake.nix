@@ -54,7 +54,7 @@
                     types_or = [ "c" "c++" ];
                   };
                   pebble-build = {
-                    enable = true;
+                    enable = false;
                     name = "pebble build";
                     entry = "pebble build";
                     files = "\\.c$";
