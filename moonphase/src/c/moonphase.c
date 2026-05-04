@@ -3,10 +3,12 @@
 // Rectangular Pebble (basalt/aplite): 144x168. Chalk (round): 180x180.
 #define CLOCK_CX PBL_IF_ROUND_ELSE(90, 72)
 #define CLOCK_CY PBL_IF_ROUND_ELSE(90, 84)
-#define TICK_OUTER_R PBL_IF_ROUND_ELSE(84, 62)
-#define TICK_INNER_R PBL_IF_ROUND_ELSE(76, 55)
+#define NUMERAL_R PBL_IF_ROUND_ELSE(74, 52)
 #define MOON_OFFSET_Y 46
 #define MOON_RADIUS 13
+
+// Marker style: 0 = numbers, 1 = roman numerals, 2 = ticks
+#define MARKER_STYLE 0
 
 static Window *s_window;
 static Layer *s_bg_layer, *s_moon_layer, *s_hands_layer;
@@ -99,10 +101,10 @@ static const GPoint STAR_POSITIONS[NUM_STARS] = {
 	{120, 38},  {15, 95},  {32, 140}, {118, 90},  {60, 30},
 };
 
-// 0=tiny(1px), 1=small, 2=medium
+// 1=small, 2=medium
 static const uint8_t STAR_RADIUS[NUM_STARS] = {
-	1, 0, 2, 1, 0, 2, 1, 0, 1, 2, 0, 1, 2,
-	0, 1, 2, 0, 1, 0, 2, 1, 0, 2, 1, 0,
+	1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2,
+	1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1,
 };
 
 // Each star twinkles off for 1 second every 15s, staggered by offset
@@ -131,27 +133,70 @@ static void bg_update_proc(Layer *layer, GContext *ctx)
 		graphics_fill_circle(ctx, STAR_POSITIONS[i], STAR_RADIUS[i]);
 	}
 
-	// 11 tick marks (skip 6 o'clock — the moon subdial sits there)
+	// Hour markers (skip 6 o'clock — moon subdial)
+#if MARKER_STYLE == 2
+	// Ticks
 	graphics_context_set_stroke_color(ctx, GColorWhite);
-	for (int i = 0; i < 12; i++) {
+	for (int i = 1; i <= 12; i++) {
 		if (i == 6)
 			continue;
 		int32_t angle = TRIG_MAX_ANGLE * i / 12;
-		GPoint outer = {.x = (int16_t)(sin_lookup(angle) *
-					       TICK_OUTER_R / TRIG_MAX_RATIO) +
+		GPoint outer = {.x = (int16_t)(sin_lookup(angle) * 62 /
+					       TRIG_MAX_RATIO) +
 				     center.x,
-				.y = (int16_t)(-cos_lookup(angle) *
-					       TICK_OUTER_R / TRIG_MAX_RATIO) +
+				.y = (int16_t)(-cos_lookup(angle) * 62 /
+					       TRIG_MAX_RATIO) +
 				     center.y};
-		GPoint inner_pt = {
-			.x = (int16_t)(sin_lookup(angle) * TICK_INNER_R /
-				       TRIG_MAX_RATIO) +
-			     center.x,
-			.y = (int16_t)(-cos_lookup(angle) * TICK_INNER_R /
-				       TRIG_MAX_RATIO) +
-			     center.y};
+		GPoint inner_pt = {.x = (int16_t)(sin_lookup(angle) * 55 /
+						  TRIG_MAX_RATIO) +
+					center.x,
+				   .y = (int16_t)(-cos_lookup(angle) * 55 /
+						  TRIG_MAX_RATIO) +
+					center.y};
 		graphics_draw_line(ctx, inner_pt, outer);
 	}
+#else
+	static const char *const LABELS[2][13] = {
+		{"", "1", "2", "3", "4", "5", "", "7", "8", "9", "10", "11",
+		 "12"},
+		{"", "I", "II", "III", "IV", "V", "", "VII", "VIII", "IX", "X",
+		 "XI", "XII"},
+	};
+	const char *const *label = LABELS[MARKER_STYLE == 1 ? 1 : 0];
+	GFont font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+	graphics_context_set_fill_color(ctx, GColorWhite);
+	for (int i = 1; i <= 12; i++) {
+		if (i == 6)
+			continue;
+		int32_t angle = TRIG_MAX_ANGLE * i / 12;
+		int32_t sin_a = sin_lookup(angle);
+		int32_t cos_a = cos_lookup(angle);
+		int16_t cx, cy;
+#ifdef PBL_ROUND
+		cx = (int16_t)(sin_a * NUMERAL_R / TRIG_MAX_RATIO) + center.x;
+		cy = (int16_t)(-cos_a * NUMERAL_R / TRIG_MAX_RATIO) + center.y;
+#else
+		int32_t abs_sin = sin_a < 0 ? -sin_a : sin_a;
+		int32_t abs_cos = cos_a < 0 ? -cos_a : cos_a;
+		if (abs_sin == 0) {
+			cx = center.x;
+			cy = (int16_t)(center.y + (cos_a > 0 ? -62 : 62));
+		} else if (abs_cos == 0) {
+			cx = (int16_t)(center.x + (sin_a > 0 ? 52 : -52));
+			cy = center.y;
+		} else if (52 * abs_cos <= 62 * abs_sin) {
+			cx = (int16_t)(center.x + (sin_a > 0 ? 52 : -52));
+			cy = (int16_t)(center.y - cos_a * 52 / abs_sin);
+		} else {
+			cy = (int16_t)(center.y + (cos_a > 0 ? -62 : 62));
+			cx = (int16_t)(center.x + sin_a * 62 / abs_cos);
+		}
+#endif
+		graphics_draw_text(
+			ctx, label[i], font, GRect(cx - 18, cy - 11, 36, 22),
+			GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
+	}
+#endif
 }
 
 static void moon_update_proc(Layer *layer, GContext *ctx)
