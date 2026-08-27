@@ -200,21 +200,6 @@ static void load_static_frame(bool is_playing)
 
 static void load_sequence(uint32_t resource_id)
 {
-	// Don't reload if already loaded
-	if (s_current_resource_id == resource_id) {
-		return;
-	}
-
-	// Clean up existing sequence and bitmap
-	if (s_sequence) {
-		gbitmap_sequence_destroy(s_sequence);
-		s_sequence = NULL;
-	}
-	if (s_bitmap) {
-		gbitmap_destroy(s_bitmap);
-		s_bitmap = NULL;
-	}
-
 	// Cancel any pending timers
 	if (s_timer) {
 		app_timer_cancel(s_timer);
@@ -225,9 +210,28 @@ static void load_sequence(uint32_t resource_id)
 		s_animation_stop_timer = NULL;
 	}
 
-	// Load the new sequence
-	s_sequence = gbitmap_sequence_create_with_resource(resource_id);
-	if (s_sequence) {
+	if (s_current_resource_id == resource_id && s_sequence && s_bitmap) {
+		// Same resource already loaded (e.g. by load_static_frame) -
+		// just restart the animation from the first frame
+		gbitmap_sequence_restart(s_sequence);
+	} else {
+		// Clean up existing sequence and bitmap
+		if (s_sequence) {
+			gbitmap_sequence_destroy(s_sequence);
+			s_sequence = NULL;
+		}
+		if (s_bitmap) {
+			gbitmap_destroy(s_bitmap);
+			s_bitmap = NULL;
+		}
+
+		// Load the new sequence
+		s_sequence = gbitmap_sequence_create_with_resource(resource_id);
+		if (!s_sequence) {
+			s_current_resource_id = 0;
+			return;
+		}
+
 		// Create blank bitmap with the correct size
 		GSize frame_size = gbitmap_sequence_get_bitmap_size(s_sequence);
 
@@ -238,15 +242,16 @@ static void load_sequence(uint32_t resource_id)
 		// Set the bitmap on the layer
 		bitmap_layer_set_bitmap(s_bitmap_layer, s_bitmap);
 
-		// Start animation
 		s_current_resource_id = resource_id;
-		s_animation_active = true;
-		s_timer = app_timer_register(0, timer_handler, NULL);
-
-		// Schedule animation to stop after duration
-		s_animation_stop_timer = app_timer_register(
-			ANIMATION_DURATION_MS, stop_animation_handler, NULL);
 	}
+
+	// Start animation
+	s_animation_active = true;
+	s_timer = app_timer_register(0, timer_handler, NULL);
+
+	// Schedule animation to stop after duration
+	s_animation_stop_timer = app_timer_register(
+		ANIMATION_DURATION_MS, stop_animation_handler, NULL);
 }
 
 static void stop_animation_handler(void *context)
@@ -260,10 +265,13 @@ static void stop_animation_handler(void *context)
 	}
 
 	// Revert to static first frame
-	time_t temp = time(NULL);
-	struct tm *tick_time = localtime(&temp);
-	bool is_playing = is_daytime(tick_time);
-	load_static_frame(is_playing);
+	if (s_sequence && s_bitmap) {
+		gbitmap_sequence_restart(s_sequence);
+		gbitmap_sequence_update_bitmap_next_frame(s_sequence, s_bitmap,
+							  NULL);
+		bitmap_layer_set_bitmap(s_bitmap_layer, s_bitmap);
+		layer_mark_dirty(bitmap_layer_get_layer(s_bitmap_layer));
+	}
 }
 
 static void timer_handler(void *context)
@@ -421,13 +429,9 @@ static void init()
 	Layer *window_layer = window_get_root_layer(s_window);
 	GRect bounds = layer_get_bounds(window_layer);
 
-	// Create BitmapLayer for animation (full screen to match 144x168 APNG)
-	int image_width = 144;
-	int image_height = 168;
-	int image_x = 0;
-	int image_y = 0;
-	s_bitmap_layer = bitmap_layer_create(
-		GRect(image_x, image_y, image_width, image_height));
+	// Create BitmapLayer for animation (full screen, APNG matches
+	// platform resolution)
+	s_bitmap_layer = bitmap_layer_create(bounds);
 	bitmap_layer_set_compositing_mode(s_bitmap_layer, GCompOpSet);
 	layer_add_child(window_layer, bitmap_layer_get_layer(s_bitmap_layer));
 
