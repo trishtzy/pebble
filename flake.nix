@@ -38,7 +38,7 @@
                   version = "3.12";
                   venv.enable = true;
                   venv.requirements = ''
-                    pebble-tool==5.0.34
+                    pebble-tool==5.0.40
                   '';
                 };
 
