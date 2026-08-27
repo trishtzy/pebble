@@ -38,7 +38,7 @@
                   version = "3.12";
                   venv.enable = true;
                   venv.requirements = ''
-                    pebble-tool==5.0.34
+                    pebble-tool==5.0.40
                   '';
                 };
 
@@ -66,6 +66,24 @@
                 enterShell = ''
                   echo "Pebble development environment loaded"
                   echo "Available tools: pebble, clang-format, magick, ffmpeg"
+
+                  # devenv exports CC=clang, which hijacks waf's ARM
+                  # cross-compiler detection, and pebble-tool's qemu version
+                  # check needs PEBBLE_QEMU_PATH and DYLD_LIBRARY_PATH to find
+                  # its bundled qemu on macOS. Scope the fixes to pebble alone
+                  # so DYLD_LIBRARY_PATH doesn't shadow libraries for other
+                  # tools in the shell.
+                  pebble() {
+                    local sdk="$HOME/Library/Application Support/Pebble SDK/SDKs/current"
+                    if [ -x "$sdk/toolchain/bin/qemu-pebble" ]; then
+                      env -u CC -u CXX \
+                        PEBBLE_QEMU_PATH="$sdk/toolchain/bin/qemu-pebble" \
+                        DYLD_LIBRARY_PATH="$sdk/toolchain/lib" \
+                        pebble "$@"
+                    else
+                      env -u CC -u CXX pebble "$@"
+                    fi
+                  }
                 '';
               }
             ];

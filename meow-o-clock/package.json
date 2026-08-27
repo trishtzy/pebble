@@ -14,7 +14,8 @@
     "enableMultiJS": true,
     "targetPlatforms": [
       "aplite",
-      "basalt"
+      "basalt",
+      "emery"
     ],
     "watchapp": {
       "watchface": true
@@ -38,6 +39,22 @@
           "file": "kitten-sleeping.png",
           "targetPlatforms": [
             "basalt"
+          ]
+        },
+        {
+          "type": "raw",
+          "name": "KITTEN_PLAY_TIME",
+          "file": "emery/kitten-play-time.png",
+          "targetPlatforms": [
+            "emery"
+          ]
+        },
+        {
+          "type": "raw",
+          "name": "KITTEN_SLEEPING",
+          "file": "emery/kitten-sleeping.png",
+          "targetPlatforms": [
+            "emery"
           ]
         },
         {

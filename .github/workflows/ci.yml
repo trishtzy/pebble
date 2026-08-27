@@ -22,4 +22,4 @@ jobs:
           name: devenv
 
       - name: Run pre-commit hooks
-        run: nix run github:cachix/devenv -- ci
+        run: nix develop --impure --command prek run --all-files
