@@ -1,0 +1,6 @@
+# The OpenRouter key the asset scripts read. Never commit it.
+.env
+
+# Match the root .gitignore: build output is generated, but the bundle is kept.
+build/*
+!build/*.pbw
