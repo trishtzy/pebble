@@ -12,3 +12,10 @@ void walk_anim_deinit(void);
 // running: restarting mid-cross would teleport the group back off-screen.
 void walk_anim_start(void);
 bool walk_anim_is_running(void);
+
+// Re-read the frames after the colour/black-and-white setting changed. Cancels
+// a traverse in progress: the group would otherwise change colour mid-plaza.
+// Emery only, like the setting itself — see settings.h.
+#if defined(PBL_PLATFORM_EMERY)
+void walk_anim_reload(void);
+#endif

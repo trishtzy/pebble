@@ -1,5 +1,6 @@
 #include "walk_anim.h"
 #include "../config.h"
+#include "settings.h"
 
 static BitmapLayer *s_layer = NULL;
 static AppTimer *s_timer = NULL;
@@ -80,13 +81,26 @@ static void frames_advance(void)
 static GBitmapSequence *s_sequence = NULL;
 static GBitmap *s_frame = NULL;
 
+// On emery the black-and-white mode is a different SEQUENCE, not a different
+// code path: the fault that keeps diorite and flint off the APNG is a 1-bit
+// platform fault, and emery decodes both sequences happily. So the setting
+// costs one resource id here and nothing else.
+static uint32_t walk_resource(void)
+{
+#if defined(PBL_PLATFORM_EMERY)
+	return settings_bw() ? RESOURCE_ID_LEMMINGS_WALK_BW
+			     : RESOURCE_ID_LEMMINGS_WALK;
+#else
+	return RESOURCE_ID_LEMMINGS_WALK;
+#endif
+}
+
 static bool frames_load(void)
 {
 	// The sequence is tiny (~4 KB of flash) and is kept resident rather
 	// than being loaded per flick: re-reading it from flash on every wrist
 	// turn would cost more than holding it does.
-	s_sequence = gbitmap_sequence_create_with_resource(
-		RESOURCE_ID_LEMMINGS_WALK);
+	s_sequence = gbitmap_sequence_create_with_resource(walk_resource());
 	if (!s_sequence) {
 		return false;
 	}
@@ -204,6 +218,36 @@ bool walk_anim_is_running(void)
 {
 	return s_timer != NULL;
 }
+
+#if defined(PBL_PLATFORM_EMERY)
+
+void walk_anim_reload(void)
+{
+	// s_layer is NULL when the frames never loaded at all; there is nothing
+	// to swap, and walk_anim_start() already declines to run without them.
+	if (!s_layer) {
+		return;
+	}
+
+	if (s_timer) {
+		app_timer_cancel(s_timer);
+		s_timer = NULL;
+	}
+	// Hidden and detached from its bitmap BEFORE the unload: the layer
+	// holds the frame by pointer, and a redraw between the free and the
+	// reload would follow it into freed memory.
+	layer_set_hidden(bitmap_layer_get_layer(s_layer), true);
+	bitmap_layer_set_bitmap(s_layer, NULL);
+
+	frames_unload();
+	if (!frames_load()) {
+		// Same contract as init: no traverse rather than a crash on the
+		// next wrist flick.
+		frames_unload();
+	}
+}
+
+#endif /* PBL_PLATFORM_EMERY */
 
 void walk_anim_start(void)
 {

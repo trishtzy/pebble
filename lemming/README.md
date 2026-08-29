@@ -8,7 +8,10 @@ briefcases. The rest of the time it is just the bank and the time.
 
 Built for **basalt** (144x168), **diorite** and **flint** (144x168, 1-bit) and **emery**
 (200x228). Every pixel in every colour asset is a legal Pebble RGB222 colour — each
-channel one of `00`, `55`, `AA`, `FF`; the 1-bit assets are derived from them.
+channel one of `00`, `55`, `AA`, `FF`; the black-and-white assets are derived from them.
+
+On **emery** the choice between them is a [setting](#settings): black and white is what
+diorite and flint have to show, and what an emery wearer can ask for.
 
 ## Layout
 
@@ -83,11 +86,13 @@ Also not obvious:
 
 ### Black and white — `lemming-bw`
 
-`to_bw.sh` derives the diorite/flint assets from the **composed** 144x168 colour ones,
-never from a fresh generation: `src/c/config.h`'s dial and sprite constants were measured
-off those exact files, so anything that changes framing or scale silently invalidates
-them. Every operation is a per-pixel colour substitution, so the geometry is untouched by
-construction.
+`to_bw.sh` derives the black-and-white assets from the **composed** colour ones, at both
+sizes: 144x168 because diorite and flint have no other option, 200x228 because emery's
+wearer can ask for it. One mapping serves both — the same art decisions, made for two
+different reasons. It never works from a fresh generation: `src/c/config.h`'s dial and
+sprite constants were measured off those exact files, so anything that changes framing or
+scale silently invalidates them. Every operation is a per-pixel colour substitution, so
+the geometry is untouched by construction.
 
 The mapping is spelled out colour by colour rather than thresholded on luminance:
 
@@ -101,6 +106,9 @@ The mapping is spelled out colour by colour rather than thresholded on luminance
   shirt front, face patch and paws stay white, held off the plaza by the black outline
   that already surrounds them.
 
+The two sizes diverge in exactly one place, and it is a platform fault rather than an art
+decision:
+
 > **The walk cycle ships as six `bitmap` resources on 1-bit platforms, not as the APNG.**
 > The sequence decoder *does* read the APNG on diorite and flint — it fills the target
 > bitmap and returns cleanly — but drawing that bitmap then faults inside the firmware.
@@ -112,6 +120,11 @@ The mapping is spelled out colour by colour rather than thresholded on luminance
 > written as grayscale+alpha at depth 1, which is the format the resource compiler turns
 > into a transparent 1-bit pbi — that is what makes `GCompOpSet` honour the cut-out
 > instead of drawing an opaque block over the steps.
+>
+> Emery is not affected — that fault is a 1-bit-platform one, and emery decodes both
+> sequences happily — so its black-and-white walk cycle is a second APNG played through
+> the same `GBitmapSequence`. The setting costs one resource id in `walk_anim.c` and no
+> second code path.
 
 ### Preview — `lemming-preview`
 
@@ -131,7 +144,10 @@ src/c/
   modules/clock_hands.{h,c}  analog hands on the blank dial
   modules/walk_anim.{h,c}    the walk cycle + its traverse across the plaza
   modules/glance.{h,c}       wrist-flick detection
-  windows/bank_window.{h,c}  wires the four together
+  modules/settings.{h,c}     the emery colour / black-and-white choice
+  windows/bank_window.{h,c}  wires the five together
+src/pkjs/
+  index.js                   the settings page the phone shows
 ```
 
 Following the [battery guide][bat]: `MINUTE_UNIT` ticks rather than `SECOND_UNIT`; the
@@ -146,8 +162,35 @@ for the accelerometer entering the zone corresponding to the watch being turned 
 the wearer, and fires once per entry. Flicks during a traverse are ignored — restarting
 mid-cross would teleport the group back off-screen.
 
-Footprint: 2644 bytes RAM and 10320 bytes of resources on emery, 2597 and 6736 on
-diorite/flint.
+Footprint: 3135 bytes RAM and 13762 bytes of resources on emery, 2613 and 6736 on
+diorite/flint, 2660 and 8086 on basalt. Emery carries both sets of art and an AppMessage
+buffer pair; the platforms without the setting carry neither, and none of its code —
+`settings.c` compiles down to `settings_bw()` returning false there, and `bank_window.c`
+and `walk_anim.c` drop their swap paths with it.
+
+## Settings
+
+Emery only, and one choice: colour or black and white. `src/pkjs/index.js` builds the
+page and hands it to the phone as a `data:` URI — the same trick Clay uses, without
+taking Clay on as a dependency, because nothing in this repo's packaging installs npm
+modules and the whole form is one radio pair.
+
+Three things about it are worth knowing:
+
+- **The value lives on the watch**, in persistent storage, not on the phone. A watchface
+  is loaded far more often than it is configured, usually with the phone out of range,
+  so the phone only ever *sends changes*; it is never asked at startup. `localStorage`
+  mirrors the value on the phone side for one purpose — opening the page with the right
+  option already selected.
+- **The page reads `return_to` from its own query string**, falling back to
+  `pebblejs://close#`. The phone app uses the scheme; `pebble emu-app-config` writes the
+  page to a local file and passes an HTTP URL instead, and a page that hardcodes the
+  scheme cannot be round-tripped in the emulator at all.
+- **The settings gear appears on every watch** once a `showConfiguration` handler
+  exists, so the non-emery platforms are served a page that says there is nothing to
+  choose, rather than a toggle that does nothing. Basalt is colour too, but its 144x168
+  black-and-white assets are the six `bitmap` frames built for the 1-bit screens rather
+  than a sequence it can play, so it is not offered the choice.
 
 ## Building
 
@@ -171,6 +214,16 @@ shell you need the same thing by hand:
 env -u CC -u CXX pebble build
 env -u CC -u CXX pebble install --emulator emery
 ```
+
+The setting can be exercised there too, though it takes both halves of the SDK's config
+flow:
+
+```sh
+env -u CC -u CXX pebble emu-app-config --emulator emery
+```
+
+That opens the page in a browser and waits on a local HTTP server for it to come back;
+picking an option and saving sends the AppMessage the same way the phone would.
 
 The emulator produces no realistic accelerometer data. Either set
 `LEMMING_DEBUG_AUTOSTART` to 1 in `windows/bank_window.c`, or inject the transition:

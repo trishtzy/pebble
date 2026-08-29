@@ -1,7 +1,7 @@
 {
   "name": "lemming-brothers",
   "author": "trishtzy",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "keywords": [
     "pebble-app"
   ],
@@ -22,7 +22,7 @@
       "watchface": true
     },
     "messageKeys": [
-      "dummy"
+      "BW_MODE"
     ],
     "resources": {
       "media": [
@@ -47,6 +47,14 @@
           "type": "bitmap",
           "name": "BANK_BG",
           "file": "images/lemming_bank_200x228.png",
+          "targetPlatforms": [
+            "emery"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "BANK_BG_BW",
+          "file": "images/lemming_bank_bw_200x228.png",
           "targetPlatforms": [
             "emery"
           ]
@@ -117,6 +125,14 @@
           "type": "raw",
           "name": "LEMMINGS_WALK",
           "file": "images/lemmings_walk_200x228.png",
+          "targetPlatforms": [
+            "emery"
+          ]
+        },
+        {
+          "type": "raw",
+          "name": "LEMMINGS_WALK_BW",
+          "file": "images/lemmings_walk_bw_200x228.png",
           "targetPlatforms": [
             "emery"
           ]
