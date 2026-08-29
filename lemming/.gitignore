@@ -5,7 +5,18 @@
 build/*
 !build/*.pbw
 
+# Generation inputs and intermediates. The scripts write these; only the assets
+# package.json declares (and the previews) are worth keeping.
+resources/images/*
+!resources/images/lemming_bank_144x168.png
+!resources/images/lemming_bank_bw_144x168.png
+!resources/images/lemming_bank_200x228.png
+!resources/images/lemmings_walk_144x168.png
+!resources/images/lemmings_walk_200x228.png
+!resources/images/lemmings_walk_bw_f?_144x168.png
+!resources/images/lemming_bank_preview_144x168.gif
+!resources/images/lemming_bank_preview_200x228.gif
 
-resources/images/
+# Third-party reference photos and the multi-megabyte veo render.
 resources/inspo/
 resources/video/
