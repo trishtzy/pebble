@@ -10,18 +10,52 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # softprops/action-gh-release creates the release and attaches the bundle
-    # to it, neither of which the default read-only workflow token can do.
+    # contents: write — softprops/action-gh-release creates the release and
+    # attaches the bundle to it, neither of which the default read-only workflow
+    # token can do. actions: write — cache-nix-action manages and purges caches
+    # through the GitHub Actions REST API; without it the store is never
+    # persisted ("Resource not accessible by integration") and every run
+    # cold-misses.
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: cachix/install-nix-action@v31
+        with:
+          # Keep build outputs and .drv files in the store so the build closure
+          # persists and can be cached by the step below.
+          extra_nix_config: |
+            keep-outputs = true
+            keep-derivations = true
 
       - uses: cachix/cachix-action@v16
         with:
           name: devenv
+
+      # Restore and save /nix/store in one step (saves in the post-job phase).
+      # A separate key namespace from CI so neither purges the other's store;
+      # the cost is that the first tag push after a nix change cold-misses even
+      # if CI just warmed its own.
+      #
+      # This caches the DEPENDENCY closure only — python312, nodejs, imagemagick
+      # and stdenv, roughly 1-1.5G on x86_64-linux, hence the 2G cap. The
+      # watchface derivation itself always rebuilds, because src is the project
+      # directory and a release is by definition a change to it, and the SDK and
+      # pebble-tool are fetched inside that build into $TMPDIR rather than the
+      # store. So this saves the closure download, not the build.
+      - name: Cache Nix store
+        uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-release-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-release-
+          gc-max-store-size-linux: 2G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-release-
+          purge-created: 0
+          purge-last-accessed: P1DT12H
+          purge-primary-key: never
 
       # Tags are <project>/v<version> — meow-o-clock/v1.4.0, moonphase/v1.0.0 —
       # so one tag is one watchface, and the prefix is also the flake
