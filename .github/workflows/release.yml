@@ -1,6 +1,12 @@
 name: Release
 
-# Pushing the tag is the release: `git tag lemming/v1.0.0 && git push --tags`.
+# Pushing the tag IS the release: `git tag lemming/v1.0.0 && git push --tags`.
+# No GitHub Release is created and nothing is attached to one — the bundle a
+# release consists of is already tracked at <project>/build/<pname>-v<version>.pbw,
+# refreshed by `pebble-release` before the tag is cut. What this workflow adds is
+# the check that the tagged commit actually builds, which nothing else does:
+# ci.yml only runs the pre-commit hooks.
+#
 # `*` does not match `/` in an Actions glob, so this is exactly one path
 # segment before the version — lemming/v1.0.0 matches, a bare v1.0.0 does not.
 on:
@@ -10,14 +16,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # contents: write — softprops/action-gh-release creates the release and
-    # attaches the bundle to it, neither of which the default read-only workflow
-    # token can do. actions: write — cache-nix-action manages and purges caches
-    # through the GitHub Actions REST API; without it the store is never
-    # persisted ("Resource not accessible by integration") and every run
-    # cold-misses.
+    # actions: write — cache-nix-action manages and purges caches through the
+    # GitHub Actions REST API; without it the store is never persisted
+    # ("Resource not accessible by integration") and every run cold-misses.
+    # Nothing here writes to the repository, so contents stays at the default
+    # read-only.
     permissions:
-      contents: write
       actions: write
     steps:
       - uses: actions/checkout@v4
@@ -96,16 +100,8 @@ jobs:
           echo "project=$project" >> "$GITHUB_OUTPUT"
 
       # sandbox is relaxed because the build pip-installs pebble-tool and
-      # downloads the Pebble SDK. Unlike pebble-release, the result symlink is
-      # wanted here: it is what the upload globs.
+      # downloads the Pebble SDK. --no-link because nothing consumes the bundle:
+      # the point is that the build succeeds. The .pbw that ships is the tracked
+      # one in <project>/build, put there by `pebble-release` before the tag.
       - name: Build ${{ steps.wf.outputs.project }}
-        run: nix build ".#${{ steps.wf.outputs.project }}" --option sandbox false -o result
-
-      # On a tag-triggered run this CREATES the release for ${{ github.ref_name }}
-      # and attaches the bundle to it; there is no release to attach to yet.
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          # Already named <pname>-v<version>.pbw by the derivation.
-          files: result/*.pbw
+        run: nix build ".#${{ steps.wf.outputs.project }}" --option sandbox false --no-link

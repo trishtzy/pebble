@@ -6,7 +6,7 @@
 # Emits:
 #   resources/images/lemming_bank_bw_144x168.png     background, 2 colours
 #   resources/images/lemmings_walk_bw_f<0-5>_144x168.png   walk cycle, what the app loads
-#   resources/images/lemmings_walk_bw_144x168.gif          walk cycle, preview only
+#   resources/images/drafts/lemmings_walk_bw_144x168.gif   walk cycle, preview only
 #
 # Derived from the COMPOSED art, never re-generated from the raw renders: config.h's
 # DIAL_CX/CY/R and WALK_W/H were measured off those exact files, so anything that
@@ -31,6 +31,11 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 out="$here/../images"
+# The B/W preview GIF is a generation intermediate, so it lands in the ignored
+# drafts/ dir rather than beside the assets package.json declares. Ignored
+# means absent from a fresh checkout and from the nix sandbox, so create it.
+drafts="$out/drafts"
+mkdir -p "$drafts"
 work="$(mktemp -d -t bw.XXXX)"
 trap 'rm -rf "$work"' EXIT
 
@@ -88,10 +93,10 @@ while [ "$n" -lt 6 ]; do
   n=$((n + 1))
 done
 
-# Preview only — nothing loads this on watch, it is the B/W counterpart of the colour
-# walk GIF that sits beside it in resources/images.
+# Preview only — nothing loads this on watch, it is the B/W counterpart of the
+# colour walk GIF in resources/images.
 magick -delay 8 -loop 0 -dispose background "${frames[@]}" \
-  -define png:color-type=6 "$out/lemmings_walk_bw_144x168.gif"
+  -define png:color-type=6 "$drafts/lemmings_walk_bw_144x168.gif"
 
 magick identify -format '  %f: %wx%h colors=%k %B B\n' "$out/lemming_bank_bw_144x168.png"
 for n in 0 1 2 3 4 5; do
