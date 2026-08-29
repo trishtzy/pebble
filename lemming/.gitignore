@@ -5,17 +5,12 @@
 build/*
 !build/*.pbw
 
-# Generation inputs and intermediates. The scripts write these; only the assets
-# package.json declares (and the previews) are worth keeping.
-resources/images/*
-!resources/images/lemming_bank_144x168.png
-!resources/images/lemming_bank_bw_144x168.png
-!resources/images/lemming_bank_200x228.png
-!resources/images/lemmings_walk_144x168.png
-!resources/images/lemmings_walk_200x228.png
-!resources/images/lemmings_walk_bw_f?_144x168.png
-!resources/images/lemming_bank_preview_144x168.gif
-!resources/images/lemming_bank_preview_200x228.gif
+# Generation inputs and intermediates — raw renders, superseded character
+# versions, the walk-cycle GIFs the sprite scripts read and the B/W previews
+# they write. resources/images itself now holds only what package.json declares
+# plus the two bank previews, so the directory IS the keep-list: a new file
+# there shows up in git status instead of silently vanishing into a wildcard.
+resources/images/drafts/
 
 # Third-party reference photos and the multi-megabyte veo render.
 resources/inspo/
