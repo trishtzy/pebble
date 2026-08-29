@@ -151,8 +151,11 @@ diorite/flint.
 
 ## Building
 
-For a release bundle, build the Nix package from the repo root — it installs the SDK,
-regenerates the 1-bit assets and builds all four platforms in one step:
+For a release bundle, build the Nix package from the repo root — it installs the SDK and
+builds all four platforms in one step. The 1-bit assets are not regenerated: they are
+committed, and `to_bw.sh`'s walk-cycle input is not, so the build could not redo them
+even if it wanted to. Re-run `lemming-bw` yourself and commit the result whenever the
+colour art changes.
 
 ```sh
 nix build .#lemming --option sandbox false   # -> result/lemming-brothers-v1.0.0.pbw
