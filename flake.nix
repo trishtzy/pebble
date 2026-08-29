@@ -19,8 +19,7 @@
         in
         {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
-          meow-o-clock = pkgs.callPackage ./meow-o-clock { };
-          perryverse = pkgs.callPackage ./watchface { };
+          lemming = pkgs.callPackage ./lemming { };
         });
 
       devShells = forEachSystem (system:
