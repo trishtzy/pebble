@@ -221,6 +221,9 @@ static void markers_update_proc(Layer *layer, GContext *ctx)
 			continue;
 		if (!day && i == 6)
 			continue;
+		// 3 o'clock is the day/date window
+		if (i == 3)
+			continue;
 		int32_t angle = TRIG_MAX_ANGLE * i / 12;
 		GPoint outer = {.x = (int16_t)(sin_lookup(angle) * 62 /
 					       TRIG_MAX_RATIO) +
@@ -253,6 +256,9 @@ static void markers_update_proc(Layer *layer, GContext *ctx)
 			continue;
 		if (!day && i == 6)
 			continue;
+		// 3 o'clock is the day/date window
+		if (i == 3)
+			continue;
 		int32_t angle = TRIG_MAX_ANGLE * i / 12;
 		int32_t sin_a = sin_lookup(angle);
 		int32_t cos_a = cos_lookup(angle);
@@ -283,7 +289,9 @@ static void markers_update_proc(Layer *layer, GContext *ctx)
 	}
 #endif
 
-	// DAY|DATE on one line, vertically centred at the 3 o'clock marker
+	// DAY|DATE on one line, in place of the 3 o'clock numeral. The window
+	// is sized for the widest string it can hold ("WED|28"), so two-digit
+	// dates stay on the same line instead of wrapping.
 	{
 		static const char *const DAY_NAMES[] = {
 			"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
@@ -292,16 +300,23 @@ static void markers_update_proc(Layer *layer, GContext *ctx)
 			 DAY_NAMES[t->tm_wday], t->tm_mday);
 		GFont date_font = fonts_get_system_font(FONT_KEY_GOTHIC_14);
 		GRect date_rect =
-			PBL_IF_ROUND_ELSE(GRect(116, center.y - 7, 40, 14),
-					  GRect(84, center.y - 7, 36, 14));
+			PBL_IF_ROUND_ELSE(GRect(112, center.y - 9, 56, 18),
+					  GRect(84, center.y - 9, 54, 18));
 		graphics_context_set_fill_color(ctx, bg);
 		graphics_fill_rect(ctx, date_rect, 0, GCornerNone);
 		graphics_context_set_stroke_color(ctx, fg);
 		graphics_draw_rect(ctx, date_rect);
 		graphics_context_set_text_color(ctx, fg);
-		graphics_draw_text(ctx, date_str, date_font, date_rect,
-				   GTextOverflowModeWordWrap,
-				   GTextAlignmentCenter, NULL);
+		// Gothic 14 leaves leading above the caps, so the glyphs sit
+		// low in their line box; lift the text to centre it in the
+		// frame. Fill rather than word wrap: a string that somehow
+		// outgrows the window is clipped, never pushed to a second
+		// line.
+		GRect text_rect = date_rect;
+		text_rect.origin.y -= 2;
+		graphics_draw_text(ctx, date_str, date_font, text_rect,
+				   GTextOverflowModeFill, GTextAlignmentCenter,
+				   NULL);
 	}
 }
 
