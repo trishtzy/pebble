@@ -4,3 +4,8 @@
 # Match the root .gitignore: build output is generated, but the bundle is kept.
 build/*
 !build/*.pbw
+
+
+resources/images/
+resources/inspo/
+resources/video/

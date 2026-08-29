@@ -3,3 +3,6 @@
 **/.lock-waf_darwin_build
 .devenv/
 .pre-commit-config.yaml
+.direnv/
+.envrc
+.claude
