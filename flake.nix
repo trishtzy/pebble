@@ -21,11 +21,22 @@
         {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
 
-          # All three need `--option sandbox false`: the builds pip-install
+          # All of these need `--option sandbox false`: the builds pip-install
           # pebble-tool and download the SDK.
-          lemming = pkgs.callPackage ./lemming { inherit mkPebbleWatchface; };
-          meow-o-clock = pkgs.callPackage ./meow-o-clock { inherit mkPebbleWatchface; };
-          moonphase = pkgs.callPackage ./moonphase { inherit mkPebbleWatchface; };
+          lemming = mkPebbleWatchface {
+            src = ./lemming;
+            # to_bw.sh needs magick, and nothing else.
+            extraNativeBuildInputs = [ pkgs.imagemagick ];
+            # package.json points diorite and flint at 1-bit assets derived
+            # from the committed colour art. Regenerating here keeps them
+            # honest: to_bw.sh is a pure per-pixel substitution, so the build
+            # ships assets derived from the committed sources even if the
+            # committed outputs have drifted.
+            preBuild = "bash resources/scripts/to_bw.sh";
+          };
+          meow-o-clock = mkPebbleWatchface { src = ./meow-o-clock; };
+          moonphase = mkPebbleWatchface { src = ./moonphase; };
+          perryverse = mkPebbleWatchface { src = ./watchface; };
         });
 
       devShells = forEachSystem (system:
