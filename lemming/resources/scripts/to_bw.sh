@@ -31,10 +31,11 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 out="$here/../images"
-# The colour walk GIF this reads and the B/W one it writes are both generation
-# intermediates, so they sit in the ignored drafts/ dir rather than beside the
-# assets package.json declares.
+# The B/W preview GIF is a generation intermediate, so it lands in the ignored
+# drafts/ dir rather than beside the assets package.json declares. Ignored
+# means absent from a fresh checkout and from the nix sandbox, so create it.
 drafts="$out/drafts"
+mkdir -p "$drafts"
 work="$(mktemp -d -t bw.XXXX)"
 trap 'rm -rf "$work"' EXIT
 
@@ -81,7 +82,7 @@ frames=()
 n=0
 while [ "$n" -lt 6 ]; do
   f="$(printf '%s/f%d.png' "$work" "$n")"
-  magick "$drafts/lemmings_walk_144x168.gif[$n]" -coalesce \
+  magick "$out/lemmings_walk_144x168.gif[$n]" -coalesce \
     \( +clone -alpha extract -threshold 50% -write "$work/a$n.png" +delete \) \
     -alpha off "${walk_ops[@]}" \
     "$work/a$n.png" -alpha off -compose CopyOpacity -composite \
@@ -92,8 +93,8 @@ while [ "$n" -lt 6 ]; do
   n=$((n + 1))
 done
 
-# Preview only — nothing loads this on watch, it is the B/W counterpart of the colour
-# walk GIF that sits beside it in drafts/.
+# Preview only — nothing loads this on watch, it is the B/W counterpart of the
+# colour walk GIF in resources/images.
 magick -delay 8 -loop 0 -dispose background "${frames[@]}" \
   -define png:color-type=6 "$drafts/lemmings_walk_bw_144x168.gif"
 
