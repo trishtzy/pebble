@@ -151,7 +151,19 @@ diorite/flint.
 
 ## Building
 
-`pebble` is wrapped by a shell function in the devenv `enterShell` (devenv exports
+For a release bundle, build the Nix package from the repo root — it installs the SDK,
+regenerates the 1-bit assets and builds all four platforms in one step:
+
+```sh
+nix build .#lemming --option sandbox false   # -> result/lemming-brothers-v1.0.0.pbw
+```
+
+The attribute is `lemming`, after the directory, not `lemming-brothers`. It needs
+`--option sandbox false` because the build pip-installs `pebble-tool` and downloads the
+SDK. See the root [README](../README.md#building).
+
+For iterating, build in the devenv shell instead. `pebble` is wrapped by a shell
+function in the devenv `enterShell` (devenv exports
 `CC=clang`, which hijacks waf's ARM cross-compiler detection). From a non-interactive
 shell you need the same thing by hand:
 

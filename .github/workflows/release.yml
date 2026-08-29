@@ -1,0 +1,111 @@
+name: Release
+
+# Pushing the tag is the release: `git tag lemming/v1.0.0 && git push --tags`.
+# `*` does not match `/` in an Actions glob, so this is exactly one path
+# segment before the version — lemming/v1.0.0 matches, a bare v1.0.0 does not.
+on:
+  push:
+    tags: ['*/v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # contents: write — softprops/action-gh-release creates the release and
+    # attaches the bundle to it, neither of which the default read-only workflow
+    # token can do. actions: write — cache-nix-action manages and purges caches
+    # through the GitHub Actions REST API; without it the store is never
+    # persisted ("Resource not accessible by integration") and every run
+    # cold-misses.
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          # Keep build outputs and .drv files in the store so the build closure
+          # persists and can be cached by the step below.
+          extra_nix_config: |
+            keep-outputs = true
+            keep-derivations = true
+
+      - uses: cachix/cachix-action@v16
+        with:
+          name: devenv
+
+      # Restore and save /nix/store in one step (saves in the post-job phase).
+      # A separate key namespace from CI so neither purges the other's store;
+      # the cost is that the first tag push after a nix change cold-misses even
+      # if CI just warmed its own.
+      #
+      # This caches the DEPENDENCY closure only — python312, nodejs, imagemagick
+      # and stdenv, roughly 1-1.5G on x86_64-linux, hence the 2G cap. The
+      # watchface derivation itself always rebuilds, because src is the project
+      # directory and a release is by definition a change to it, and the SDK and
+      # pebble-tool are fetched inside that build into $TMPDIR rather than the
+      # store. So this saves the closure download, not the build.
+      - name: Cache Nix store
+        uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-release-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-release-
+          gc-max-store-size-linux: 2G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-release-
+          purge-created: 0
+          purge-last-accessed: P1DT12H
+          purge-primary-key: never
+
+      # Tags are <project>/v<version> — meow-o-clock/v1.4.0, moonphase/v1.0.0 —
+      # so one tag is one watchface, and the prefix is also the flake
+      # attribute. Build only what was tagged rather than everything: the other
+      # faces have not changed, and attaching their bundles to this release
+      # would be actively wrong.
+      #
+      # NOTE the prefix is the DIRECTORY name, not the app name, because that is
+      # what the flake attribute is: lemming/v1.0.0, never lemming-brothers/v1.0.0.
+      - name: Resolve watchface from tag
+        id: wf
+        run: |
+          set -euo pipefail
+          tag='${{ github.ref_name }}'
+          project="${tag%%/*}"
+          version="${tag#*/}"
+          version="${version#v}"
+
+          case "$project" in
+            lemming | meow-o-clock | moonphase) ;;
+            *)
+              echo "::error::tag '$tag' does not name a buildable watchface" \
+                   "(expected <project>/v<version> where project is one of:" \
+                   "lemming, meow-o-clock, moonphase)"
+              exit 1
+              ;;
+          esac
+
+          # The bundle is named from package.json, so a tag that disagrees with
+          # it would silently publish e.g. meow-o-clock-v1.4.0.pbw under a
+          # v1.5.0 release. Fail loudly instead.
+          declared="$(jq -r .version "$project/package.json")"
+          if [ "$declared" != "$version" ]; then
+            echo "::error::tag says v$version but $project/package.json says $declared"
+            exit 1
+          fi
+
+          echo "project=$project" >> "$GITHUB_OUTPUT"
+
+      # sandbox is relaxed because the build pip-installs pebble-tool and
+      # downloads the Pebble SDK. Unlike pebble-release, the result symlink is
+      # wanted here: it is what the upload globs.
+      - name: Build ${{ steps.wf.outputs.project }}
+        run: nix build ".#${{ steps.wf.outputs.project }}" --option sandbox false -o result
+
+      # On a tag-triggered run this CREATES the release for ${{ github.ref_name }}
+      # and attaches the bundle to it; there is no release to attach to yet.
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          # Already named <pname>-v<version>.pbw by the derivation.
+          files: result/*.pbw
