@@ -16,10 +16,16 @@
       packages = forEachSystem (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          mkPebbleWatchface = pkgs.callPackage ./nix/pebble-watchface.nix { };
         in
         {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
-          lemming = pkgs.callPackage ./lemming { };
+
+          # All three need `--option sandbox false`: the builds pip-install
+          # pebble-tool and download the SDK.
+          lemming = pkgs.callPackage ./lemming { inherit mkPebbleWatchface; };
+          meow-o-clock = pkgs.callPackage ./meow-o-clock { inherit mkPebbleWatchface; };
+          moonphase = pkgs.callPackage ./moonphase { inherit mkPebbleWatchface; };
         });
 
       devShells = forEachSystem (system:
@@ -93,6 +99,27 @@
                         "$root/resources/video/lemming_bank_walk.mp4" lemmings_walk
                     '';
                   };
+                  pebble-release = {
+                    description = "nix build every watchface and refresh each project's tracked build/*.pbw";
+                    exec = ''
+                      set -euo pipefail
+                      cd "$DEVENV_ROOT"
+                      # A nix build cannot write into the source tree — it is
+                      # sandboxed to /nix/store and hands back a `result`
+                      # symlink — so the bundle is copied out afterwards. The
+                      # store copy is mode 444 owned by root, hence `install
+                      # -m 644` rather than `cp`: a plain cp would leave the
+                      # file read-only and the next run would fail. Copying
+                      # into the directory keeps the store's own
+                      # <pname>-v<version>.pbw name.
+                      for p in lemming meow-o-clock moonphase; do
+                        out="$(nix build ".#$p" --option sandbox false \
+                                 --no-link --print-out-paths)"
+                        install -m 644 "$out"/*.pbw "$p/build/"
+                        echo "  $p/build/$(basename "$out"/*.pbw)"
+                      done
+                    '';
+                  };
                   lemming-bw = {
                     description = "Derive the 1-bit diorite/flint assets from the composed colour ones";
                     exec = ''
@@ -127,6 +154,7 @@
                   echo "Available tools: pebble, clang-format, magick, ffmpeg"
                   echo "Lemming assets: lemming-generate [name], lemming-convert <png> <name>"
                   echo "Lemming Brothers: lemming-bank, lemming-walk, lemming-bw, lemming-preview [HH:MM]"
+                  echo "Release bundles:  pebble-release"
 
                   # devenv exports CC=clang, which hijacks waf's ARM
                   # cross-compiler detection, and pebble-tool's qemu version
