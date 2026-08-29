@@ -1,0 +1,77 @@
+name: Release
+
+# Pushing the tag is the release: `git tag lemming/v1.0.0 && git push --tags`.
+# `*` does not match `/` in an Actions glob, so this is exactly one path
+# segment before the version — lemming/v1.0.0 matches, a bare v1.0.0 does not.
+on:
+  push:
+    tags: ['*/v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # softprops/action-gh-release creates the release and attaches the bundle
+    # to it, neither of which the default read-only workflow token can do.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+
+      - uses: cachix/cachix-action@v16
+        with:
+          name: devenv
+
+      # Tags are <project>/v<version> — meow-o-clock/v1.4.0, moonphase/v1.0.0 —
+      # so one tag is one watchface, and the prefix is also the flake
+      # attribute. Build only what was tagged rather than everything: the other
+      # faces have not changed, and attaching their bundles to this release
+      # would be actively wrong.
+      #
+      # NOTE the prefix is the DIRECTORY name, not the app name, because that is
+      # what the flake attribute is: lemming/v1.0.0, never lemming-brothers/v1.0.0.
+      - name: Resolve watchface from tag
+        id: wf
+        run: |
+          set -euo pipefail
+          tag='${{ github.ref_name }}'
+          project="${tag%%/*}"
+          version="${tag#*/}"
+          version="${version#v}"
+
+          case "$project" in
+            lemming | meow-o-clock | moonphase) ;;
+            *)
+              echo "::error::tag '$tag' does not name a buildable watchface" \
+                   "(expected <project>/v<version> where project is one of:" \
+                   "lemming, meow-o-clock, moonphase)"
+              exit 1
+              ;;
+          esac
+
+          # The bundle is named from package.json, so a tag that disagrees with
+          # it would silently publish e.g. meow-o-clock-v1.4.0.pbw under a
+          # v1.5.0 release. Fail loudly instead.
+          declared="$(jq -r .version "$project/package.json")"
+          if [ "$declared" != "$version" ]; then
+            echo "::error::tag says v$version but $project/package.json says $declared"
+            exit 1
+          fi
+
+          echo "project=$project" >> "$GITHUB_OUTPUT"
+
+      # sandbox is relaxed because the build pip-installs pebble-tool and
+      # downloads the Pebble SDK. Unlike pebble-release, the result symlink is
+      # wanted here: it is what the upload globs.
+      - name: Build ${{ steps.wf.outputs.project }}
+        run: nix build ".#${{ steps.wf.outputs.project }}" --option sandbox false -o result
+
+      # On a tag-triggered run this CREATES the release for ${{ github.ref_name }}
+      # and attaches the bundle to it; there is no release to attach to yet.
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          # Already named <pname>-v<version>.pbw by the derivation.
+          files: result/*.pbw
