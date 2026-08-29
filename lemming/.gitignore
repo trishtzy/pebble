@@ -1,0 +1,22 @@
+# The OpenRouter key the asset scripts read. Never commit it.
+.env
+
+# Match the root .gitignore: build output is generated, but the bundle is kept.
+build/*
+!build/*.pbw
+
+# Generation inputs and intermediates. The scripts write these; only the assets
+# package.json declares (and the previews) are worth keeping.
+resources/images/*
+!resources/images/lemming_bank_144x168.png
+!resources/images/lemming_bank_bw_144x168.png
+!resources/images/lemming_bank_200x228.png
+!resources/images/lemmings_walk_144x168.png
+!resources/images/lemmings_walk_200x228.png
+!resources/images/lemmings_walk_bw_f?_144x168.png
+!resources/images/lemming_bank_preview_144x168.gif
+!resources/images/lemming_bank_preview_200x228.gif
+
+# Third-party reference photos and the multi-megabyte veo render.
+resources/inspo/
+resources/video/
