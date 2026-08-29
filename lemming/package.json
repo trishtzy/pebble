@@ -14,6 +14,8 @@
     "enableMultiJS": true,
     "targetPlatforms": [
       "basalt",
+      "diorite",
+      "flint",
       "emery"
     ],
     "watchapp": {
@@ -28,25 +30,96 @@
           "type": "bitmap",
           "name": "BANK_BG",
           "file": "images/lemming_bank_144x168.png",
-          "targetPlatforms": ["basalt"]
+          "targetPlatforms": [
+            "basalt"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "BANK_BG",
+          "file": "images/lemming_bank_bw_144x168.png",
+          "targetPlatforms": [
+            "diorite",
+            "flint"
+          ]
         },
         {
           "type": "bitmap",
           "name": "BANK_BG",
           "file": "images/lemming_bank_200x228.png",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "raw",
           "name": "LEMMINGS_WALK",
           "file": "images/lemmings_walk_144x168.png",
-          "targetPlatforms": ["basalt"]
+          "targetPlatforms": [
+            "basalt"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "LEMMINGS_WALK_F0",
+          "file": "images/lemmings_walk_bw_f0_144x168.png",
+          "targetPlatforms": [
+            "diorite",
+            "flint"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "LEMMINGS_WALK_F1",
+          "file": "images/lemmings_walk_bw_f1_144x168.png",
+          "targetPlatforms": [
+            "diorite",
+            "flint"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "LEMMINGS_WALK_F2",
+          "file": "images/lemmings_walk_bw_f2_144x168.png",
+          "targetPlatforms": [
+            "diorite",
+            "flint"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "LEMMINGS_WALK_F3",
+          "file": "images/lemmings_walk_bw_f3_144x168.png",
+          "targetPlatforms": [
+            "diorite",
+            "flint"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "LEMMINGS_WALK_F4",
+          "file": "images/lemmings_walk_bw_f4_144x168.png",
+          "targetPlatforms": [
+            "diorite",
+            "flint"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "LEMMINGS_WALK_F5",
+          "file": "images/lemmings_walk_bw_f5_144x168.png",
+          "targetPlatforms": [
+            "diorite",
+            "flint"
+          ]
         },
         {
           "type": "raw",
           "name": "LEMMINGS_WALK",
           "file": "images/lemmings_walk_200x228.png",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         }
       ]
     }

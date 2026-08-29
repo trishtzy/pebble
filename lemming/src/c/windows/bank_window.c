@@ -1,5 +1,6 @@
 #include "bank_window.h"
 #include "../config.h"
+#include "../modules/battery_text.h"
 #include "../modules/clock_hands.h"
 #include "../modules/glance.h"
 #include "../modules/walk_anim.h"
@@ -49,6 +50,8 @@ static void window_load(Window *window)
 	s_hands_layer = clock_hands_create(bounds);
 	layer_add_child(root, s_hands_layer);
 
+	battery_text_init(root, bounds);
+
 	walk_anim_init(root, bounds);
 
 	tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
@@ -63,6 +66,7 @@ static void window_unload(Window *window)
 {
 	glance_deinit();
 	tick_timer_service_unsubscribe();
+	battery_text_deinit();
 
 	walk_anim_deinit();
 	if (s_hands_layer) {

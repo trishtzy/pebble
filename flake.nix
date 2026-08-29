@@ -46,6 +46,10 @@
                   clang-tools
                   imagemagick
                   ffmpeg
+                  # SDK 4.33.1's qemu-pebble links against libpng16 and ships no
+                  # copy of it, so the emulator will not launch without this on
+                  # the dyld search path. 4.9.169's qemu did not need it.
+                  libpng
                   # lemming asset generation: curl talks to OpenRouter, jq builds
                   # the request and pulls the base64 image out of the response.
                   curl
@@ -90,6 +94,12 @@
                         "$root/resources/video/lemming_bank_walk.mp4" lemmings_walk
                     '';
                   };
+                  lemming-bw = {
+                    description = "Derive the 1-bit diorite/flint assets from the composed colour ones";
+                    exec = ''
+                      exec "$DEVENV_ROOT/lemming/resources/scripts/to_bw.sh" "$@"
+                    '';
+                  };
                   lemming-preview = {
                     description = "Render the assembled Lemming Brothers watchface as an animated GIF";
                     exec = ''
@@ -117,7 +127,7 @@
                   echo "Pebble development environment loaded"
                   echo "Available tools: pebble, clang-format, magick, ffmpeg"
                   echo "Lemming assets: lemming-generate [name], lemming-convert <png> <name>"
-                  echo "Lemming Brothers: lemming-bank, lemming-walk, lemming-preview [HH:MM]"
+                  echo "Lemming Brothers: lemming-bank, lemming-walk, lemming-bw, lemming-preview [HH:MM]"
 
                   # devenv exports CC=clang, which hijacks waf's ARM
                   # cross-compiler detection, and pebble-tool's qemu version
